@@ -1,0 +1,47 @@
+<section class="detail-shell">
+	<div class="header-row">
+		<h2>Hotel #{{ hotelId }}</h2>
+		<a mat-stroked-button routerLink="/dashboard">Back</a>
+	</div>
+
+	<div class="analysis" *ngIf="analysis">
+		<p><strong>Current:</strong> {{ analysis.currentPrice | currency: 'USD' }}</p>
+		<p><strong>Average:</strong> {{ analysis.averagePrice | currency: 'USD' }}</p>
+		<p><strong>Score:</strong> {{ analysis.score | number: '1.2-2' }}</p>
+		<p><strong>Deal:</strong> {{ analysis.isDeal ? 'Yes' : 'No' }}</p>
+	</div>
+
+	<app-hotel-chart [prices]="prices"></app-hotel-chart>
+
+	<section class="scraped-data" *ngIf="prices.length">
+		<h3>All Scraped Records</h3>
+		<div class="table-wrap">
+			<table>
+				<thead>
+					<tr>
+						<th>Captured</th>
+						<th>Price</th>
+						<th>Currency</th>
+						<th>Source</th>
+						<th>Seed</th>
+						<th>Location</th>
+						<th>Stay Range</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr *ngFor="let point of prices">
+						<td>{{ point.dateCaptured | date: 'medium' }}</td>
+						<td>{{ point.price | currency: point.currency }}</td>
+						<td>{{ point.currency }}</td>
+						<td>{{ point.source }}</td>
+						<td>{{ asYesNo(point.isSeed) }}</td>
+						<td>{{ point.searchCity || 'N/A' }}</td>
+						<td>{{ stayRange(point) }}</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<p class="empty-data" *ngIf="!prices.length">No scraped records available yet for this hotel.</p>
+</section>

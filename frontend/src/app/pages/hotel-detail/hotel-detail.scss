@@ -1,0 +1,81 @@
+.detail-shell {
+	border: 1px solid rgba(43, 70, 46, 0.2);
+	border-radius: 20px;
+	background: #f9fff8;
+	padding: 1.2rem;
+}
+
+.header-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 0.8rem;
+}
+
+h2 {
+	margin: 0;
+}
+
+.analysis {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(120px, 1fr));
+	gap: 0.7rem;
+	margin-bottom: 1rem;
+}
+
+.analysis p {
+	margin: 0;
+	background: #eef8ec;
+	padding: 0.65rem;
+	border-radius: 12px;
+}
+
+.scraped-data {
+	margin-top: 1.2rem;
+
+	h3 {
+		margin: 0 0 0.6rem;
+	}
+}
+
+.table-wrap {
+	overflow-x: auto;
+	border: 1px solid rgba(43, 70, 46, 0.2);
+	border-radius: 14px;
+	background: #ffffff;
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.92rem;
+}
+
+th,
+td {
+	padding: 0.65rem 0.7rem;
+	border-bottom: 1px solid rgba(43, 70, 46, 0.12);
+	text-align: left;
+	white-space: nowrap;
+}
+
+th {
+	font-weight: 700;
+	background: #f2fbf0;
+	color: #223827;
+}
+
+tbody tr:last-child td {
+	border-bottom: none;
+}
+
+.empty-data {
+	margin-top: 0.8rem;
+	color: #506351;
+}
+
+@media (max-width: 900px) {
+	.analysis {
+		grid-template-columns: 1fr;
+	}
+}

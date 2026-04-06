@@ -1,0 +1,44 @@
+<section class="search-shell">
+	<h2>Search Booking Prices</h2>
+	<app-search-form (searchSubmitted)="search($event)"></app-search-form>
+
+	<p class="status" *ngIf="loading">
+		{{ currentMode === 'real' ? 'Running real-time web scraping...' : 'Loading results from database...' }}
+	</p>
+
+	<mat-accordion class="results-accordion" *ngIf="groupedResults.length">
+		<mat-expansion-panel *ngFor="let group of groupedResults">
+			<mat-expansion-panel-header>
+				<mat-panel-title>{{ group.name }}</mat-panel-title>
+				<mat-panel-description>
+					{{ group.city }} · from {{ group.lowestPrice | currency: group.currency }} · {{ group.offers.length }} offers
+				</mat-panel-description>
+			</mat-expansion-panel-header>
+
+			<div class="offer-list">
+				<div class="offer-item" *ngFor="let offer of group.offers">
+					<div class="offer-main">
+						<p class="offer-price">{{ offer.price | currency: offer.currency }}</p>
+						<p class="offer-dates">{{ offer.checkIn }} -> {{ offer.checkOut }}</p>
+						<span class="source-badge" [ngClass]="'source-' + offer.source">{{ offer.source | uppercase }}</span>
+						<p class="trace-note" *ngIf="offer.note">{{ offer.note }}</p>
+					</div>
+					<div class="offer-actions">
+						<a
+							mat-stroked-button
+							color="primary"
+							*ngIf="offer.offerUrl"
+							[href]="offer.offerUrl"
+							target="_blank"
+							rel="noopener noreferrer">
+							Ver oferta
+						</a>
+						<span class="no-link" *ngIf="!offer.offerUrl">Sin link disponible</span>
+					</div>
+				</div>
+			</div>
+		</mat-expansion-panel>
+	</mat-accordion>
+
+	<p class="status" *ngIf="!loading && !groupedResults.length">No results yet.</p>
+</section>

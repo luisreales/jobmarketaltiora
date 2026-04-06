@@ -1,0 +1,58 @@
+<form class="search-grid" [formGroup]="form" (ngSubmit)="submit()">
+	<div class="mode-switch">
+		<mat-button-toggle-group formControlName="mode" aria-label="Data source mode">
+			<mat-button-toggle value="real">Real Data</mat-button-toggle>
+			<mat-button-toggle value="database">Database Data</mat-button-toggle>
+		</mat-button-toggle-group>
+	</div>
+
+	<mat-form-field appearance="outline">
+		<mat-label>Country or City</mat-label>
+		<input matInput formControlName="location" placeholder="Spain, Madrid, Lisbon..." />
+	</mat-form-field>
+
+	<mat-form-field appearance="outline">
+		<mat-label>Check-in</mat-label>
+		<input matInput [matDatepicker]="checkInPicker" formControlName="checkIn" />
+		<mat-datepicker-toggle matIconSuffix [for]="checkInPicker"></mat-datepicker-toggle>
+		<mat-datepicker #checkInPicker></mat-datepicker>
+	</mat-form-field>
+
+	<mat-form-field appearance="outline">
+		<mat-label>Check-out</mat-label>
+		<input matInput [matDatepicker]="checkOutPicker" formControlName="checkOut" />
+		<mat-datepicker-toggle matIconSuffix [for]="checkOutPicker"></mat-datepicker-toggle>
+		<mat-datepicker #checkOutPicker></mat-datepicker>
+	</mat-form-field>
+
+	<div class="occupancy-panel">
+		<div class="counter-row">
+			<span>Adults</span>
+			<div class="counter-box">
+				<button mat-icon-button type="button" (click)="decrease('adults')"><mat-icon>remove</mat-icon></button>
+				<strong>{{ form.get('adults')?.value }}</strong>
+				<button mat-icon-button type="button" (click)="increase('adults')"><mat-icon>add</mat-icon></button>
+			</div>
+		</div>
+
+		<div class="counter-row">
+			<span>Kids</span>
+			<div class="counter-box">
+				<button mat-icon-button type="button" (click)="decrease('kids')"><mat-icon>remove</mat-icon></button>
+				<strong>{{ form.get('kids')?.value }}</strong>
+				<button mat-icon-button type="button" (click)="increase('kids')"><mat-icon>add</mat-icon></button>
+			</div>
+		</div>
+
+		<div class="counter-row">
+			<span>Rooms</span>
+			<div class="counter-box">
+				<button mat-icon-button type="button" (click)="decrease('rooms')"><mat-icon>remove</mat-icon></button>
+				<strong>{{ form.get('rooms')?.value }}</strong>
+				<button mat-icon-button type="button" (click)="increase('rooms')"><mat-icon>add</mat-icon></button>
+			</div>
+		</div>
+	</div>
+
+	<button mat-flat-button color="primary" type="submit">Search Deals</button>
+</form>

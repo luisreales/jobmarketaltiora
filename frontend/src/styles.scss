@@ -1,0 +1,29 @@
+@use '@angular/material' as mat;
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+@include mat.core();
+
+$hotel-primary: mat.m2-define-palette(mat.$m2-green-palette, 700, 500, 900);
+$hotel-accent: mat.m2-define-palette(mat.$m2-lime-palette, 600, 300, 800);
+$hotel-warn: mat.m2-define-palette(mat.$m2-red-palette, 700);
+
+$hotel-theme: mat.m2-define-light-theme((
+	color: (
+		primary: $hotel-primary,
+		accent: $hotel-accent,
+		warn: $hotel-warn
+	)
+));
+
+@include mat.all-component-themes($hotel-theme);
+
+html,
+body {
+	margin: 0;
+	min-height: 100%;
+	font-family: 'Plus Jakarta Sans', sans-serif;
+	background:
+		radial-gradient(circle at 10% 10%, rgba(139, 199, 132, 0.3), transparent 45%),
+		radial-gradient(circle at 90% 80%, rgba(198, 222, 153, 0.42), transparent 40%),
+		linear-gradient(145deg, #ecf7e9 0%, #f8ffeb 40%, #f7fffd 100%);
+}
