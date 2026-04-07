@@ -1,4 +1,7 @@
 using backend.Application.Interfaces;
+using backend.Infrastructure.Providers;
+using backend.Infrastructure.Scraping;
+using backend.Infrastructure.Sessions;
 using backend.Infrastructure.Data;
 using backend.Infrastructure.Repositories;
 using backend.Infrastructure.Services;
@@ -23,6 +26,11 @@ builder.Services.AddHttpClient();
 
 builder.Services.AddScoped<IJobRepository, JobRepository>();
 builder.Services.AddScoped<IProviderSessionRepository, ProviderSessionRepository>();
+builder.Services.AddSingleton<IBrowserPool, BrowserPool>();
+builder.Services.AddScoped<IPlaywrightScraper, PlaywrightScraper>();
+builder.Services.AddScoped<ISessionManager, LinkedInSessionManager>();
+builder.Services.AddScoped<IJobProvider, LinkedInProvider>();
+builder.Services.AddScoped<IJobProvider, IndeedProvider>();
 builder.Services.AddScoped<IJobOrchestrator, JobOrchestrator>();
 builder.Services.Configure<LinkedInAuthOptions>(builder.Configuration.GetSection("LinkedInAuth"));
 builder.Services.AddSingleton<ILinkedInAuthService, LinkedInAuthService>();
