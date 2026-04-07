@@ -7,7 +7,9 @@ namespace backend.Controllers;
 [ApiController]
 [Route("api/jobs")]
 [Route("api/linkedin")]
-public class JobsController(IJobOrchestrator orchestrator) : ControllerBase
+public class JobsController(
+    IJobOrchestrator orchestrator,
+    IJobProcessingService processingService) : ControllerBase
 {
     [HttpPost("search/scrape")]
     public async Task<ActionResult<JobSearchResponse>> Scrape(
@@ -47,6 +49,10 @@ public class JobsController(IJobOrchestrator orchestrator) : ControllerBase
             x.Company,
             x.Location,
             BuildDescriptionPreview(x.Description),
+            x.Category,
+            x.OpportunityScore,
+            x.IsConsultingCompany,
+            x.CompanyType,
             x.Source,
             x.SearchTerm,
             x.CapturedAt,
@@ -68,6 +74,10 @@ public class JobsController(IJobOrchestrator orchestrator) : ControllerBase
             x.Company,
             x.Location,
             x.Description,
+            x.Category,
+            x.OpportunityScore,
+            x.IsConsultingCompany,
+            x.CompanyType,
             x.Url,
             x.Source,
             x.SearchTerm,
@@ -91,6 +101,10 @@ public class JobsController(IJobOrchestrator orchestrator) : ControllerBase
             job.Company,
             job.Location,
             job.Description,
+            job.Category,
+            job.OpportunityScore,
+            job.IsConsultingCompany,
+            job.CompanyType,
             job.Url,
             job.Contact,
             job.SalaryRange,
@@ -101,6 +115,119 @@ public class JobsController(IJobOrchestrator orchestrator) : ControllerBase
             job.SearchTerm,
             job.CapturedAt,
             job.MetadataJson));
+    }
+
+    [HttpGet("leads")]
+    public async Task<ActionResult<List<JobLeadDto>>> GetLeads(
+        [FromQuery] int? minScore,
+        [FromQuery] bool directOnly = true,
+        [FromQuery] string? search = null,
+        [FromQuery] string? category = null,
+        [FromQuery] string? companyType = null,
+        CancellationToken cancellationToken = default)
+    {
+        var filter = new JobFilter
+        {
+            MinScore = minScore,
+            DirectOnly = directOnly,
+            Search = search,
+            Category = category,
+            CompanyType = companyType
+        };
+
+        var jobs = await processingService.GetLeadsAsync(filter, cancellationToken);
+        return Ok(jobs.Select(x => new JobLeadDto(
+            x.Id,
+            x.Title,
+            x.Company,
+            x.Location,
+            x.Category,
+            x.OpportunityScore,
+            x.CompanyType,
+            x.Url,
+            x.CapturedAt)).ToList());
+    }
+
+    [HttpGet("leads/filter")]
+    public async Task<ActionResult<List<JobLeadDto>>> FilterLeads(
+        [FromQuery] int? minScore,
+        [FromQuery] bool directOnly = true,
+        [FromQuery] string? search = null,
+        [FromQuery] string? category = null,
+        [FromQuery] string? companyType = null,
+        CancellationToken cancellationToken = default)
+    {
+        var filter = new JobFilter
+        {
+            MinScore = minScore,
+            DirectOnly = directOnly,
+            Search = search,
+            Category = category,
+            CompanyType = companyType
+        };
+
+        var jobs = await processingService.GetLeadsAsync(filter, cancellationToken);
+        return Ok(jobs.Select(x => new JobLeadDto(
+            x.Id,
+            x.Title,
+            x.Company,
+            x.Location,
+            x.Category,
+            x.OpportunityScore,
+            x.CompanyType,
+            x.Url,
+            x.CapturedAt)).ToList());
+    }
+
+    [HttpGet("processed")]
+    public async Task<ActionResult<List<JobFullListDto>>> GetProcessed(CancellationToken cancellationToken)
+    {
+        var jobs = await processingService.GetProcessedAsync(cancellationToken);
+        return Ok(jobs.Select(x => new JobFullListDto(
+            x.Id,
+            x.ExternalId,
+            x.Title,
+            x.Company,
+            x.Location,
+            x.Description,
+            x.Category,
+            x.OpportunityScore,
+            x.IsConsultingCompany,
+            x.CompanyType,
+            x.Url,
+            x.Source,
+            x.SearchTerm,
+            x.CapturedAt,
+            x.MetadataJson)).ToList());
+    }
+
+    [HttpGet("unprocessed")]
+    public async Task<ActionResult<List<JobFullListDto>>> GetUnprocessed(CancellationToken cancellationToken)
+    {
+        var jobs = await processingService.GetUnprocessedAsync(cancellationToken);
+        return Ok(jobs.Select(x => new JobFullListDto(
+            x.Id,
+            x.ExternalId,
+            x.Title,
+            x.Company,
+            x.Location,
+            x.Description,
+            x.Category,
+            x.OpportunityScore,
+            x.IsConsultingCompany,
+            x.CompanyType,
+            x.Url,
+            x.Source,
+            x.SearchTerm,
+            x.CapturedAt,
+            x.MetadataJson)).ToList());
+    }
+
+    [HttpPost("process")]
+    public async Task<IActionResult> Process(CancellationToken cancellationToken)
+    {
+        var processed = await processingService.ProcessUnprocessedJobsAsync(cancellationToken, processAll: true);
+        return Ok(new { message = "Processing triggered", processedCount = processed });
     }
 
     private static string BuildDescriptionPreview(string? description)

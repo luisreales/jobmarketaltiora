@@ -117,6 +117,16 @@ public class JobOrchestrator(
         return jobRepository.GetAllAsync(cancellationToken);
     }
 
+    public async Task<List<JobOffer>> GetHighValueLeadsAsync(CancellationToken cancellationToken = default)
+    {
+        var jobs = await jobRepository.GetAllAsync(cancellationToken);
+        return jobs
+            .Where(job => job.IsProcessed && !job.IsConsultingCompany && job.OpportunityScore >= 60)
+            .OrderByDescending(job => job.OpportunityScore)
+            .ThenByDescending(job => job.CapturedAt)
+            .ToList();
+    }
+
     public Task<JobOffer?> GetJobByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         return jobRepository.GetByIdAsync(id, cancellationToken);

@@ -36,3 +36,28 @@ Accept: application/json
 GET {{backend_HostAddress}}/api/jobs/jobs
 Accept: application/json
 
+###
+
+GET {{backend_HostAddress}}/api/jobs/leads?minScore=60&directOnly=true
+Accept: application/json
+
+###
+
+GET {{backend_HostAddress}}/api/jobs/leads/filter?minScore=60&directOnly=true&category=Backend&companyType=DirectClient&search=.net
+Accept: application/json
+
+###
+
+GET {{backend_HostAddress}}/api/jobs/processed
+Accept: application/json
+
+###
+
+GET {{backend_HostAddress}}/api/jobs/unprocessed
+Accept: application/json
+
+###
+
+POST {{backend_HostAddress}}/api/jobs/process
+Accept: application/json
+

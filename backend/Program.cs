@@ -23,9 +23,13 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
 
 builder.Services.AddScoped<IJobRepository, JobRepository>();
 builder.Services.AddScoped<IProviderSessionRepository, ProviderSessionRepository>();
+builder.Services.AddScoped<ICompanyClassifier, CompanyClassifier>();
+builder.Services.AddScoped<IOpportunityScorer, OpportunityScorer>();
+builder.Services.AddScoped<IJobProcessingService, JobProcessingService>();
 builder.Services.AddSingleton<IBrowserPool, BrowserPool>();
 builder.Services.AddScoped<IPlaywrightScraper, PlaywrightScraper>();
 builder.Services.AddScoped<ISessionManager, LinkedInSessionManager>();
@@ -35,6 +39,7 @@ builder.Services.AddScoped<IJobOrchestrator, JobOrchestrator>();
 builder.Services.Configure<LinkedInAuthOptions>(builder.Configuration.GetSection("LinkedInAuth"));
 builder.Services.AddSingleton<ILinkedInAuthService, LinkedInAuthService>();
 builder.Services.AddHostedService<JobsAutomationHostedService>();
+builder.Services.AddHostedService<JobPostProcessingHostedService>();
 
 builder.Services.AddCors(options =>
 {

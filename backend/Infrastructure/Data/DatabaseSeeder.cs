@@ -7,6 +7,8 @@ public static class DatabaseSeeder
 {
     public static async Task SeedAsync(ApplicationDbContext dbContext, CancellationToken cancellationToken = default)
     {
+        await EnsureJobOfferSchemaAsync(dbContext, cancellationToken);
+
         if (!await dbContext.ProviderSessions.AnyAsync(cancellationToken))
         {
             dbContext.ProviderSessions.Add(new ProviderSession
@@ -60,5 +62,27 @@ public static class DatabaseSeeder
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task EnsureJobOfferSchemaAsync(ApplicationDbContext dbContext, CancellationToken cancellationToken)
+    {
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"JobOffers\" ADD COLUMN IF NOT EXISTS \"Category\" character varying(80) NOT NULL DEFAULT 'Unknown';",
+            cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"JobOffers\" ADD COLUMN IF NOT EXISTS \"OpportunityScore\" integer NOT NULL DEFAULT 0;",
+            cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"JobOffers\" ADD COLUMN IF NOT EXISTS \"IsConsultingCompany\" boolean NOT NULL DEFAULT false;",
+            cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"JobOffers\" ADD COLUMN IF NOT EXISTS \"CompanyType\" character varying(40) NOT NULL DEFAULT 'Unknown';",
+            cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"JobOffers\" ADD COLUMN IF NOT EXISTS \"IsProcessed\" boolean NOT NULL DEFAULT false;",
+            cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"JobOffers\" ADD COLUMN IF NOT EXISTS \"ProcessedAt\" timestamp with time zone NULL;",
+            cancellationToken);
     }
 }

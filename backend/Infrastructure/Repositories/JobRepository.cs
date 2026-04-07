@@ -39,6 +39,12 @@ public class JobRepository(ApplicationDbContext dbContext) : IJobRepository
 
             if (existing is null)
             {
+                job.Category = "Unknown";
+                job.OpportunityScore = 0;
+                job.IsConsultingCompany = false;
+                job.CompanyType = "Unknown";
+                job.IsProcessed = false;
+                job.ProcessedAt = null;
                 dbContext.JobOffers.Add(job);
                 savedCount++;
                 continue;
@@ -58,6 +64,12 @@ public class JobRepository(ApplicationDbContext dbContext) : IJobRepository
             existing.SearchTerm = job.SearchTerm;
             existing.CapturedAt = job.CapturedAt;
             existing.MetadataJson = job.MetadataJson;
+            existing.Category = "Unknown";
+            existing.OpportunityScore = 0;
+            existing.IsConsultingCompany = false;
+            existing.CompanyType = "Unknown";
+            existing.IsProcessed = false;
+            existing.ProcessedAt = null;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

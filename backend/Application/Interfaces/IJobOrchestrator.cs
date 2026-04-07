@@ -19,5 +19,6 @@ public interface IJobOrchestrator
         int? endPage = null,
         CancellationToken cancellationToken = default);
     Task<List<JobOffer>> GetJobsAsync(CancellationToken cancellationToken = default);
+    Task<List<JobOffer>> GetHighValueLeadsAsync(CancellationToken cancellationToken = default);
     Task<JobOffer?> GetJobByIdAsync(int id, CancellationToken cancellationToken = default);
 }

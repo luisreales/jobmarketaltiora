@@ -133,3 +133,58 @@ curl -X POST http://localhost:8080/api/hotels \
   -H "Content-Type: application/json" \
   -d '{"name":"Hotel Demo","city":"Madrid"}'
 ```
+
+## 6. Lead Generation Endpoints
+
+Main endpoint for dashboard leads (processed + high-value):
+
+```bash
+curl "http://localhost:8080/api/jobs/leads?minScore=60&directOnly=true"
+```
+
+Advanced filtering endpoint:
+
+```bash
+curl "http://localhost:8080/api/jobs/leads/filter?minScore=60&directOnly=true&category=Backend&companyType=DirectClient&search=.net"
+```
+
+Get all processed jobs:
+
+```bash
+curl "http://localhost:8080/api/jobs/processed"
+```
+
+Get unprocessed jobs (worker debug):
+
+```bash
+curl "http://localhost:8080/api/jobs/unprocessed"
+```
+
+Trigger manual processing:
+
+```bash
+curl -X POST "http://localhost:8080/api/jobs/process"
+```
+
+## 7. How Background Processing Works
+
+Architecture flow:
+
+1. Scraper saves raw jobs only.
+2. Raw jobs are stored with `IsProcessed=false`.
+3. `JobPostProcessingHostedService` runs in the API process.
+4. Worker takes unprocessed rows in batches, classifies/scoring, and updates them as processed.
+
+Automatic worker execution:
+
+- It starts automatically when backend starts (`dotnet run` or Docker backend container).
+- No extra command is required.
+
+Worker settings (in `backend/appsettings*.json`):
+
+- `Jobs:PostProcessing:IntervalSeconds`: polling interval when queue is empty.
+- `Jobs:PostProcessing:BatchSize`: max jobs processed per cycle.
+
+Manual processing option:
+
+- Use `POST /api/jobs/process` to process pending rows immediately.

@@ -18,4 +18,10 @@ public class JobOffer
     public string SearchTerm { get; set; } = string.Empty;
     public DateTime CapturedAt { get; set; } = DateTime.UtcNow;
     public string? MetadataJson { get; set; }
+    public string Category { get; set; } = "Unknown";
+    public int OpportunityScore { get; set; }
+    public bool IsConsultingCompany { get; set; }
+    public string CompanyType { get; set; } = "Unknown";
+    public bool IsProcessed { get; set; }
+    public DateTime? ProcessedAt { get; set; }
 }

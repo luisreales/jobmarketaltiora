@@ -25,9 +25,17 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.Source).HasMaxLength(50).IsRequired();
             entity.Property(e => e.SearchTerm).HasMaxLength(200).IsRequired();
             entity.Property(e => e.MetadataJson).HasColumnType("jsonb");
+            entity.Property(e => e.Category).HasMaxLength(80).IsRequired();
+            entity.Property(e => e.OpportunityScore).IsRequired();
+            entity.Property(e => e.IsConsultingCompany).IsRequired();
+            entity.Property(e => e.CompanyType).HasMaxLength(40).IsRequired();
+            entity.Property(e => e.IsProcessed).IsRequired();
+            entity.Property(e => e.ProcessedAt);
             entity.HasIndex(e => new { e.Source, e.ExternalId }).IsUnique();
             entity.HasIndex(e => e.CapturedAt);
             entity.HasIndex(e => new { e.Company, e.Location });
+            entity.HasIndex(e => new { e.IsConsultingCompany, e.OpportunityScore });
+            entity.HasIndex(e => new { e.IsProcessed, e.CapturedAt });
         });
 
         modelBuilder.Entity<ProviderSession>(entity =>

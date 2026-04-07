@@ -15,12 +15,25 @@ public record JobSearchRequest(
 
 public record JobSearchResponse(int SavedCount, int TotalFound, DateTime ExecutedAtUtc);
 
+public class JobFilter
+{
+    public int? MinScore { get; set; }
+    public bool DirectOnly { get; set; } = true;
+    public string? Category { get; set; }
+    public string? CompanyType { get; set; }
+    public string? Search { get; set; }
+}
+
 public record JobSummaryDto(
     int Id,
     string Title,
     string Company,
     string Location,
     string DescriptionPreview,
+    string Category,
+    int OpportunityScore,
+    bool IsConsultingCompany,
+    string CompanyType,
     string Source,
     string SearchTerm,
     DateTime CapturedAt,
@@ -37,6 +50,10 @@ public record JobFullListDto(
     string Company,
     string Location,
     string Description,
+    string Category,
+    int OpportunityScore,
+    bool IsConsultingCompany,
+    string CompanyType,
     string Url,
     string Source,
     string SearchTerm,
@@ -50,6 +67,10 @@ public record JobDetailDto(
     string Company,
     string Location,
     string Description,
+    string Category,
+    int OpportunityScore,
+    bool IsConsultingCompany,
+    string CompanyType,
     string Url,
     string? Contact,
     string? SalaryRange,
@@ -60,3 +81,14 @@ public record JobDetailDto(
     string SearchTerm,
     DateTime CapturedAt,
     string? MetadataJson);
+
+public record JobLeadDto(
+    int Id,
+    string Title,
+    string Company,
+    string Location,
+    string Category,
+    int OpportunityScore,
+    string CompanyType,
+    string Url,
+    DateTime CapturedAt);
