@@ -1,6 +1,38 @@
-@backend_HostAddress = http://localhost:5004
+@backend_HostAddress = http://localhost:8080
 
-GET {{backend_HostAddress}}/weatherforecast/
+POST {{backend_HostAddress}}/api/linkedin/auth/login
+Content-Type: application/json
+
+{
+	"provider": "linkedin",
+	"username": "your-linkedin-user",
+	"password": "your-linkedin-password"
+}
+
+###
+
+GET {{backend_HostAddress}}/api/linkedin/auth/status
 Accept: application/json
 
 ###
+
+POST {{backend_HostAddress}}/api/linkedin/search/scrape
+Content-Type: application/json
+
+{
+	"query": ".NET",
+	"location": "Remote",
+	"limit": 10,
+	"providers": ["linkedin", "indeed"]
+}
+
+###
+
+GET {{backend_HostAddress}}/api/linkedin/jobs
+Accept: application/json
+
+###
+
+GET {{backend_HostAddress}}/api/jobs/jobs
+Accept: application/json
+

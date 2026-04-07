@@ -1,5 +1,12 @@
 <section class="panel">
-	<h2>Portfolio Dashboard</h2>
-	<p>Current prices, average history, and deal scores across tracked hotels.</p>
-	<app-hotel-table [hotels]="hotels" [analysisMap]="analysisMap"></app-hotel-table>
+	<div class="header-row">
+		<h2>LinkedIn Jobs Guardadas</h2>
+		<button type="button" (click)="refresh()">Refrescar</button>
+	</div>
+	<p>Todas las vacantes capturadas y almacenadas por el backend.</p>
+
+	<p *ngIf="loading">Cargando vacantes...</p>
+	<p *ngIf="!loading && !jobs.length">No hay vacantes guardadas todavía.</p>
+
+	<app-jobs-table *ngIf="jobs.length" [jobs]="jobs"></app-jobs-table>
 </section>

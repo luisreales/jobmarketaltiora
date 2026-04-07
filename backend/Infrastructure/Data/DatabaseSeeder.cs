@@ -7,51 +7,58 @@ public static class DatabaseSeeder
 {
     public static async Task SeedAsync(ApplicationDbContext dbContext, CancellationToken cancellationToken = default)
     {
-        if (await dbContext.Hotels.AnyAsync(cancellationToken))
+        if (!await dbContext.ProviderSessions.AnyAsync(cancellationToken))
         {
-            return;
+            dbContext.ProviderSessions.Add(new ProviderSession
+            {
+                Provider = "linkedin",
+                Username = "not-logged-in",
+                IsAuthenticated = false
+            });
         }
 
-        var now = DateTime.UtcNow;
-
-        var hotels = new List<Hotel>
+        if (!await dbContext.JobOffers.AnyAsync(cancellationToken))
         {
-            new() { Name = "Hotel Gran Via", City = "Madrid" },
-            new() { Name = "Riverside Palace", City = "Lisbon" }
-        };
+            var now = DateTime.UtcNow;
+            dbContext.JobOffers.AddRange(
+                new JobOffer
+                {
+                    ExternalId = "seed-001",
+                    Title = "Senior .NET Developer",
+                    Company = "Contoso Tech",
+                    Location = "Remote - LATAM",
+                    Description = "Build backend services with .NET 9, PostgreSQL and Azure.",
+                    Url = "https://www.linkedin.com/jobs/view/seed-001",
+                    Contact = "recruiter@contoso.example",
+                    SalaryRange = "USD 4500 - 6500",
+                    PublishedAt = now.AddDays(-2),
+                    Seniority = "Senior",
+                    ContractType = "Full-time",
+                    Source = "linkedin",
+                    SearchTerm = ".NET",
+                    CapturedAt = now.AddHours(-1),
+                    MetadataJson = "{\"seed\":true}"
+                },
+                new JobOffer
+                {
+                    ExternalId = "seed-002",
+                    Title = "Backend Engineer C#",
+                    Company = "Fabrikam Data",
+                    Location = "Bogota, Colombia",
+                    Description = "Design APIs and data pipelines with C#, .NET and SQL.",
+                    Url = "https://www.linkedin.com/jobs/view/seed-002",
+                    Contact = null,
+                    SalaryRange = null,
+                    PublishedAt = now.AddDays(-1),
+                    Seniority = "Mid-Senior level",
+                    ContractType = "Contract",
+                    Source = "linkedin",
+                    SearchTerm = "C# backend",
+                    CapturedAt = now.AddMinutes(-20),
+                    MetadataJson = "{\"seed\":true}"
+                });
+        }
 
-        dbContext.Hotels.AddRange(hotels);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        var priceHistory = new List<HotelPrice>
-        {
-            new()
-            {
-                HotelId = hotels[0].Id,
-                Price = 189m,
-                Currency = "USD",
-                Source = "seed",
-                IsSeed = true,
-                SearchCity = "Madrid",
-                CheckIn = DateOnly.FromDateTime(now.AddDays(3)),
-                CheckOut = DateOnly.FromDateTime(now.AddDays(6)),
-                DateCaptured = now.AddDays(-1)
-            },
-            new()
-            {
-                HotelId = hotels[1].Id,
-                Price = 159m,
-                Currency = "USD",
-                Source = "seed",
-                IsSeed = true,
-                SearchCity = "Lisbon",
-                CheckIn = DateOnly.FromDateTime(now.AddDays(3)),
-                CheckOut = DateOnly.FromDateTime(now.AddDays(6)),
-                DateCaptured = now.AddDays(-1)
-            }
-        };
-
-        dbContext.HotelPrices.AddRange(priceHistory);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

@@ -1,0 +1,48 @@
+:host {
+  display: block;
+}
+
+.job-card {
+  border: 1px solid #d9e2ec;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  margin-top: 1rem;
+  background: #fff;
+}
+
+.job-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+h2 {
+  margin: 0;
+}
+
+h3 {
+  margin-bottom: 0.5rem;
+}
+
+ul {
+  margin-top: 0;
+  padding-left: 1.25rem;
+}
+
+a {
+  display: inline-block;
+  margin-top: 0.75rem;
+  color: #005a8d;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.empty-state {
+  color: #486581;
+}

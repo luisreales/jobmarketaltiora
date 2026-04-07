@@ -1,44 +1,50 @@
 <section class="search-shell">
-	<h2>Search Booking Prices</h2>
-	<app-search-form (searchSubmitted)="search($event)"></app-search-form>
+	<h2>Autenticacion y Scraping LinkedIn</h2>
 
-	<p class="status" *ngIf="loading">
-		{{ currentMode === 'real' ? 'Running real-time web scraping...' : 'Loading results from database...' }}
-	</p>
+	<section class="card">
+		<h3>1. Conexion LinkedIn</h3>
+		<div class="form-grid">
+			<button type="button" (click)="connect()" [disabled]="isConnected || loading">Conectar</button>
+			<button type="button" (click)="disconnect()" [disabled]="!isConnected || loading">Desconectar</button>
+		</div>
+	</section>
 
-	<mat-accordion class="results-accordion" *ngIf="groupedResults.length">
-		<mat-expansion-panel *ngFor="let group of groupedResults">
-			<mat-expansion-panel-header>
-				<mat-panel-title>{{ group.name }}</mat-panel-title>
-				<mat-panel-description>
-					{{ group.city }} · from {{ group.lowestPrice | currency: group.currency }} · {{ group.offers.length }} offers
-				</mat-panel-description>
-			</mat-expansion-panel-header>
+	<section class="card">
+		<h3>Estado de sesion</h3>
+		<p *ngIf="authStatus && !authError; else noStatus">
+			Estado usuario LinkedIn: <strong>{{ authStatus.isAuthenticated ? 'Conectado' : 'Desconectado' }}</strong><br />
+			Ultimo login: {{ authStatus.lastLoginAt || 'N/A' }}<br />
+			Ultimo uso: {{ authStatus.lastUsedAt || 'N/A' }}<br />
+			Expira: {{ authStatus.expiresAt || 'N/A' }}
+		</p>
+		<ng-template #noStatus>
+			<p>No se pudo obtener estado de autenticacion.</p>
+		</ng-template>
+		<button type="button" (click)="refreshStatus()">Actualizar estado</button>
+	</section>
 
-			<div class="offer-list">
-				<div class="offer-item" *ngFor="let offer of group.offers">
-					<div class="offer-main">
-						<p class="offer-price">{{ offer.price | currency: offer.currency }}</p>
-						<p class="offer-dates">{{ offer.checkIn }} -> {{ offer.checkOut }}</p>
-						<span class="source-badge" [ngClass]="'source-' + offer.source">{{ offer.source | uppercase }}</span>
-						<p class="trace-note" *ngIf="offer.note">{{ offer.note }}</p>
-					</div>
-					<div class="offer-actions">
-						<a
-							mat-stroked-button
-							color="primary"
-							*ngIf="offer.offerUrl"
-							[href]="offer.offerUrl"
-							target="_blank"
-							rel="noopener noreferrer">
-							Ver oferta
-						</a>
-						<span class="no-link" *ngIf="!offer.offerUrl">Sin link disponible</span>
-					</div>
-				</div>
-			</div>
-		</mat-expansion-panel>
-	</mat-accordion>
+	<section class="card">
+		<h3>2. Ejecutar scraping desde backend</h3>
+		<form [formGroup]="scrapeForm" (ngSubmit)="runScraping()" class="form-grid">
+			<label>
+				Keyword
+				<input type="text" formControlName="query" />
+			</label>
+			<label>
+				Ubicacion
+				<input type="text" formControlName="location" />
+			</label>
+			<label>
+				Limite
+				<input type="number" formControlName="limit" min="1" max="100" />
+			</label>
+			<button type="submit">Ejecutar scraping</button>
+		</form>
 
-	<p class="status" *ngIf="!loading && !groupedResults.length">No results yet.</p>
+		<p class="status" *ngIf="loading">Procesando...</p>
+		<p *ngIf="scrapeResult">
+			Encontradas: <strong>{{ scrapeResult.totalFound }}</strong> |
+			Guardadas nuevas: <strong>{{ scrapeResult.savedCount }}</strong>
+		</p>
+	</section>
 </section>

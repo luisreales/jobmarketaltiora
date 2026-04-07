@@ -21,22 +21,51 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddHttpClient();
 
-builder.Services.AddScoped<IHotelRepository, HotelRepository>();
-builder.Services.AddScoped<IHotelPriceRepository, HotelPriceRepository>();
-
-builder.Services.AddScoped<IBookingPlaywrightService, BookingPlaywrightService>();
-builder.Services.AddScoped<IBookingApiInterceptorService, BookingApiInterceptorService>();
-builder.Services.AddScoped<IBookingHybridService, BookingHybridService>();
-builder.Services.AddScoped<IPriceTrackingService, PriceTrackingService>();
-builder.Services.AddScoped<IDealAnalysisService, DealAnalysisService>();
-builder.Services.AddHostedService<DailyScrapingHostedService>();
+builder.Services.AddScoped<IJobRepository, JobRepository>();
+builder.Services.AddScoped<IProviderSessionRepository, ProviderSessionRepository>();
+builder.Services.AddScoped<IJobOrchestrator, JobOrchestrator>();
+builder.Services.Configure<LinkedInAuthOptions>(builder.Configuration.GetSection("LinkedInAuth"));
+builder.Services.AddSingleton<ILinkedInAuthService, LinkedInAuthService>();
+builder.Services.AddHostedService<JobsAutomationHostedService>();
 
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
+    {
+        if (builder.Environment.IsDevelopment())
+        {
+            // Allow local/lab frontend origins during development (localhost, 127.0.0.1, LAN IPs).
+            policy
+                .SetIsOriginAllowed(origin =>
+                {
+                    if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                    {
+                        return false;
+                    }
+
+                    if (!uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) &&
+                        !uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+
+                    if (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                        uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+
+                    return System.Net.IPAddress.TryParse(uri.Host, out _);
+                })
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+            return;
+        }
+
         policy.WithOrigins("http://localhost:4200")
             .AllowAnyHeader()
-            .AllowAnyMethod());
+            .AllowAnyMethod();
+    });
 });
 
 var app = builder.Build();
@@ -45,7 +74,6 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.EnsureCreatedAsync();
-    await DatabaseSchemaUpdater.EnsureTraceabilityColumnsAsync(dbContext);
     await DatabaseSeeder.SeedAsync(dbContext);
 }
 

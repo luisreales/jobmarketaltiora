@@ -1,41 +1,30 @@
-import { Component, OnInit } from '@angular/core';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
-import { HotelTable } from '../../components/hotel-table/hotel-table';
-import { Hotel, HotelAnalysis } from '../../models/hotel.models';
-import { HotelService } from '../../services/hotel.service';
+import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { LinkedInJobSummary } from '../../models/job.models';
+import { JobsService } from '../../services/jobs.service';
+import { JobsTableComponent } from '../../components/jobs-table/jobs-table';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [HotelTable],
+  imports: [CommonModule, JobsTableComponent],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss'
 })
 export class Dashboard implements OnInit {
-  hotels: Hotel[] = [];
-  analysisMap: Record<number, HotelAnalysis | null> = {};
-
-  constructor(private readonly hotelService: HotelService) {}
+  jobs: LinkedInJobSummary[] = [];
+  loading = false;
+  private readonly jobsService = inject(JobsService);
 
   ngOnInit(): void {
-    this.hotelService.getHotels().subscribe((hotels) => {
-      this.hotels = hotels;
-
-      if (!hotels.length) {
-        return;
-      }
-
-      const requests = hotels.map((hotel) =>
-        this.hotelService.getHotelAnalysis(hotel.id).pipe(catchError(() => of(null)))
-      );
-
-      forkJoin(requests).subscribe((analysisList) => {
-        this.analysisMap = analysisList.reduce<Record<number, HotelAnalysis | null>>((acc, item, index) => {
-          acc[hotels[index].id] = item;
-          return acc;
-        }, {});
-      });
-    });
+    this.refresh();
   }
 
+  refresh(): void {
+    this.loading = true;
+    this.jobsService.getJobs().subscribe({
+      next: (jobs) => (this.jobs = jobs),
+      error: () => (this.jobs = []),
+      complete: () => (this.loading = false)
+    });
+  }
 }

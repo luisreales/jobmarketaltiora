@@ -1,0 +1,26 @@
+@if (!job) {
+  <p class="empty-state">Job not found.</p>
+} @else {
+  <article class="job-card">
+    <header class="job-card__header">
+      <h2>{{ job.title }}</h2>
+      <span>{{ job.source }}</span>
+    </header>
+
+    <p><strong>Company:</strong> {{ job.company }}</p>
+    <p><strong>Location:</strong> {{ job.location }}</p>
+    <p><strong>Search:</strong> {{ job.searchTerm }}</p>
+    <p><strong>Contact:</strong> {{ job.contact ?? 'N/A' }}</p>
+    <p><strong>Salary:</strong> {{ job.salaryRange ?? 'N/A' }}</p>
+    <p><strong>Seniority:</strong> {{ job.seniority ?? 'N/A' }}</p>
+    <p><strong>Contract:</strong> {{ job.contractType ?? 'N/A' }}</p>
+    <p><strong>Captured:</strong> {{ job.capturedAt | date: 'medium' }}</p>
+    <p><strong>Published:</strong> {{ job.publishedAt ?? 'N/A' }}</p>
+    <p><strong>Description:</strong></p>
+    <p>{{ job.description }}</p>
+
+    @if (job.url) {
+      <a [href]="job.url" target="_blank" rel="noopener noreferrer">Open Source Listing</a>
+    }
+  </article>
+}

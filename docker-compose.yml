@@ -1,18 +1,18 @@
 services:
   postgres:
     image: postgres:16
-    container_name: hotelscrapingvip-postgres
+    container_name: jobmarketaltiora-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: hotelscrapingvip
+      POSTGRES_DB: jobmarketaltiora_db
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d hotelscrapingvip"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d jobmarketaltiora_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,7 +21,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: hotelscrapingvip-backend
+    container_name: jobmarketaltiora-backend
     restart: unless-stopped
     depends_on:
       postgres:
@@ -31,14 +31,17 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=hotelscrapingvip;Username=postgres;Password=postgres
-      Scraping__Headless: "true"
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=jobmarketaltiora_db;Username=postgres;Password=postgres
+      Jobs__Playwright__LoginHeadless: "true"
+    volumes:
+      - ./backend/playwright-state:/app/playwright-state
+      - ./backend/data:/app/data
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: hotelscrapingvip-frontend
+    container_name: jobmarketaltiora-frontend
     restart: unless-stopped
     depends_on:
       backend:

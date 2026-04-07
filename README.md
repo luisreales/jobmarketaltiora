@@ -44,6 +44,20 @@ Stop and remove DB volume:
 docker compose down -v
 ```
 
+### LinkedIn checkpoint/challenge in Docker
+
+The Docker backend forces `Jobs__Playwright__LoginHeadless=true`, so LinkedIn manual verification cannot be completed inside the container.
+
+Use this flow:
+
+1. Stop backend container (`docker compose stop backend`).
+2. Run backend locally with `Jobs:Playwright:LoginHeadless=false`.
+3. Call `POST /api/auth/login`, complete the LinkedIn checkpoint in the opened browser, and wait for success.
+4. Confirm `backend/playwright-state/linkedin.json` exists.
+5. Start backend container again (`docker compose start backend`) and continue searches.
+
+When scraping LinkedIn, backend now validates session health by opening `/feed` with stored state before running the search. If LinkedIn redirects to login/checkpoint/challenge, API returns `409` and asks for re-authentication.
+
 ## 2. Run Backend Locally (without Docker)
 
 ### Prerequisites

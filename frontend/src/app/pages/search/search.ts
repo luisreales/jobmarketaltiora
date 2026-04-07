@@ -1,77 +1,110 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatCardModule } from '@angular/material/card';
-import { MatExpansionModule } from '@angular/material/expansion';
-import { MatButtonModule } from '@angular/material/button';
-import { SearchForm } from '../../components/search-form/search-form';
-import { BookingSearchResult, SearchQuery } from '../../models/hotel.models';
-import { BookingService } from '../../services/booking.service';
-
-interface GroupedSearchResult {
-  name: string;
-  city: string;
-  lowestPrice: number;
-  currency: string;
-  offers: BookingSearchResult[];
-}
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { LinkedInAuthStatus, LinkedInSearchResponse } from '../../models/job.models';
+import { JobsService } from '../../services/jobs.service';
 
 @Component({
   selector: 'app-search',
-  imports: [CommonModule, SearchForm, MatCardModule, MatExpansionModule, MatButtonModule],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './search.html',
   styleUrl: './search.scss'
 })
 export class Search {
-  results: BookingSearchResult[] = [];
+  authStatus: LinkedInAuthStatus | null = null;
+  scrapeResult: LinkedInSearchResponse | null = null;
   loading = false;
-  currentMode: 'real' | 'database' = 'real';
+  scrapeForm;
+  authError = false;
+  private readonly jobsService = inject(JobsService);
+  private readonly fb = inject(FormBuilder);
 
-  constructor(private readonly bookingService: BookingService) {}
+  constructor() {
+    this.scrapeForm = this.fb.group({
+      query: ['.NET', Validators.required],
+      location: ['Remote', Validators.required],
+      limit: [20, [Validators.required, Validators.min(1), Validators.max(100)]]
+    });
 
-  get groupedResults(): GroupedSearchResult[] {
-    const grouped = new Map<string, GroupedSearchResult>();
-
-    for (const result of this.results) {
-      const key = result.name.trim().toLowerCase();
-      const existing = grouped.get(key);
-
-      if (!existing) {
-        grouped.set(key, {
-          name: result.name,
-          city: result.city,
-          lowestPrice: result.price,
-          currency: result.currency,
-          offers: [result]
-        });
-        continue;
-      }
-
-      existing.offers.push(result);
-      if (result.price < existing.lowestPrice) {
-        existing.lowestPrice = result.price;
-        existing.currency = result.currency;
-      }
-    }
-
-    return Array.from(grouped.values())
-      .map((group) => ({
-        ...group,
-        offers: [...group.offers].sort((a, b) => a.price - b.price)
-      }))
-      .sort((a, b) => a.lowestPrice - b.lowestPrice);
+    this.refreshStatus();
   }
 
-  search(query: SearchQuery): void {
-    this.currentMode = query.mode;
-    this.loading = true;
-    this.bookingService.search(query).subscribe({
-      next: (results) => (this.results = results),
-      complete: () => (this.loading = false),
+  get isConnected(): boolean {
+    return this.authStatus?.isAuthenticated === true;
+  }
+
+  refreshStatus(): void {
+    this.jobsService.getAuthStatus().subscribe({
+      next: (status) => {
+        this.authStatus = status;
+        this.authError = false;
+      },
       error: () => {
-        this.results = [];
-        this.loading = false;
+        this.authStatus = null;
+        this.authError = true;
       }
     });
   }
 
+  connect(): void {
+    if (this.isConnected || this.loading) {
+      return;
+    }
+
+    this.loading = true;
+    this.jobsService.connect().subscribe({
+      next: (status) => {
+        this.authStatus = status;
+        this.authError = false;
+      },
+      error: () => {
+        this.authStatus = null;
+        this.authError = true;
+        this.loading = false;
+      },
+      complete: () => (this.loading = false)
+    });
+  }
+
+  disconnect(): void {
+    if (!this.isConnected || this.loading) {
+      return;
+    }
+
+    this.loading = true;
+    this.jobsService.disconnect().subscribe({
+      next: (status) => {
+        this.authStatus = status;
+        this.authError = false;
+      },
+      error: () => {
+        this.authStatus = null;
+        this.authError = true;
+        this.loading = false;
+      },
+      complete: () => (this.loading = false)
+    });
+  }
+
+  runScraping(): void {
+    if (this.scrapeForm.invalid) {
+      this.scrapeForm.markAllAsTouched();
+      return;
+    }
+
+    this.loading = true;
+    const payload = this.scrapeForm.getRawValue();
+    this.jobsService.scrape({
+      query: payload.query ?? '',
+      location: payload.location ?? '',
+      limit: Number(payload.limit ?? 20)
+    }).subscribe({
+      next: (result) => (this.scrapeResult = result),
+      error: () => (this.scrapeResult = null),
+      complete: () => {
+        this.loading = false;
+        this.refreshStatus();
+      }
+    });
+  }
 }

@@ -1,0 +1,32 @@
+@if (jobs.length === 0) {
+  <p class="empty-state">No jobs found yet.</p>
+} @else {
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Company</th>
+          <th>Location</th>
+          <th>Source</th>
+          <th>Salary</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (job of jobs; track job.id) {
+          <tr>
+            <td>{{ job.title }}</td>
+            <td>{{ job.company }}</td>
+            <td>{{ job.location }}</td>
+            <td>{{ job.source }}</td>
+            <td>{{ job.salaryRange ?? 'N/A' }}</td>
+            <td>
+              <a [routerLink]="['/jobs', job.id]">View</a>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

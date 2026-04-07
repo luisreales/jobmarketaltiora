@@ -1,0 +1,40 @@
+:host {
+  display: block;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+th,
+td {
+  border-bottom: 1px solid #d9e2ec;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+th {
+  color: #1f3a5f;
+  font-weight: 600;
+}
+
+.empty-state {
+  margin-top: 1rem;
+  color: #486581;
+}
+
+a {
+  color: #005a8d;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
