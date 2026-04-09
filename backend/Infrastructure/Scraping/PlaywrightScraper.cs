@@ -306,11 +306,186 @@ public sealed class PlaywrightScraper(
         return resultsByUrl.Values.Take(targetCount).ToList();
     }
 
+    public async Task<List<RawJobData>> ScrapeUpworkAsync(SearchRequest request, string storageStatePath, CancellationToken ct)
+    {
+        if (!File.Exists(storageStatePath))
+        {
+            throw new InvalidOperationException("Upwork session not found. Login first using /api/auth/login with provider=upwork");
+        }
+
+        var navigationTimeoutMs = Math.Clamp(configuration.GetValue<int?>("Jobs:Playwright:NavigationTimeoutMs") ?? 30000, 5000, 120000);
+        var maxPages = Math.Clamp(configuration.GetValue<int?>("Jobs:Upwork:MaxPages") ?? 5, 1, 50);
+        var delayBetweenActionsMs = Math.Clamp(configuration.GetValue<int?>("Jobs:Upwork:DelayBetweenActionsMs") ?? 600, 300, 1200);
+        var requestedStartPage = Math.Clamp(request.StartPage ?? 1, 1, maxPages);
+        var requestedPaging = Math.Clamp(request.TotalPaging ?? 1, 1, maxPages);
+        var requestedEndPage = request.EndPage.HasValue
+            ? Math.Clamp(request.EndPage.Value, requestedStartPage, maxPages)
+            : Math.Min(maxPages, requestedStartPage + requestedPaging - 1);
+        var targetCount = Math.Clamp(request.Limit, 1, 5000);
+
+        var now = DateTime.UtcNow;
+        var resultsByUrl = new Dictionary<string, RawJobData>(StringComparer.OrdinalIgnoreCase);
+
+        var browser = await browserPool.GetBrowserAsync(ct);
+        await using var context = await browser.NewContextAsync(new BrowserNewContextOptions
+        {
+            StorageStatePath = storageStatePath,
+            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        });
+
+        var page = await context.NewPageAsync();
+        page.SetDefaultNavigationTimeout(navigationTimeoutMs);
+
+        await page.GotoAsync("https://www.upwork.com/nx/find-work/best-matches", new PageGotoOptions
+        {
+            WaitUntil = WaitUntilState.DOMContentLoaded
+        });
+
+        if (await IsUpworkBlockedAsync(page))
+        {
+            throw new InvalidOperationException("Upwork session expired. Re-authenticate with POST /api/auth/login (provider=upwork).");
+        }
+
+        for (var currentPage = requestedStartPage; currentPage <= requestedEndPage && resultsByUrl.Count < targetCount; currentPage++)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var searchUrl = BuildUpworkJobsSearchUrl(request.Query, currentPage);
+            await page.GotoAsync(searchUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+            await page.WaitForTimeoutAsync(delayBetweenActionsMs);
+
+            if (await IsUpworkBlockedAsync(page))
+            {
+                throw new InvalidOperationException("Upwork session blocked or expired during scraping. Manual login required.");
+            }
+
+            var pageText = (await page.ContentAsync()).ToLowerInvariant();
+            if (pageText.Contains("captcha", StringComparison.Ordinal) || pageText.Contains("security check", StringComparison.Ordinal))
+            {
+                logger.LogWarning("Upwork anti-bot challenge detected on page {Page}.", currentPage);
+                break;
+            }
+
+            var jobs = page.Locator("article[data-test='job-tile'], article[data-test='JobTile'], section[data-test='job-tile']");
+            var count = await jobs.CountAsync();
+            if (count == 0)
+            {
+                logger.LogInformation("No Upwork jobs found on page {Page} for query {Query}", currentPage, request.Query);
+                continue;
+            }
+
+            for (var index = 0; index < count && resultsByUrl.Count < targetCount; index++)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var item = jobs.Nth(index);
+                var link = item.Locator("h2 a, a[data-test='job-title-link']").First;
+                if (await link.CountAsync() == 0)
+                {
+                    continue;
+                }
+
+                var href = await link.GetAttributeAsync("href") ?? string.Empty;
+                var url = NormalizeUpworkUrl(href);
+                if (string.IsNullOrWhiteSpace(url) || resultsByUrl.ContainsKey(url))
+                {
+                    continue;
+                }
+
+                var title = NormalizeLinkedInText(await ReadLocatorTextOrDefaultAsync(item, "h2, a[data-test='job-title-link']"));
+                if (string.IsNullOrWhiteSpace(title))
+                {
+                    continue;
+                }
+
+                var description = NormalizeLinkedInText(await ReadLocatorTextOrDefaultAsync(item, "[data-test='job-description-text'], [data-test='UpCLineClamp JobDescription']"));
+                var budget = NormalizeLinkedInText(await ReadLocatorTextOrDefaultAsync(item, "[data-test='budget'], [data-test='is-fixed-price']"));
+                var experience = NormalizeLinkedInText(await ReadLocatorTextOrDefaultAsync(item, "[data-test='experience-level'], [data-test='expert-level']"));
+                var jobType = NormalizeLinkedInText(await ReadLocatorTextOrDefaultAsync(item, "[data-test='job-type'], [data-test='duration-label']"));
+                var location = NormalizeLinkedInText(await ReadLocatorTextOrDefaultAsync(item, "[data-test='client-location'], [data-test='location']"));
+
+                var metadata = JsonSerializer.Serialize(new
+                {
+                    origin = "upwork-direct",
+                    page = currentPage,
+                    rank = index + 1,
+                    budget,
+                    experience,
+                    jobType
+                });
+
+                var externalSeed = string.IsNullOrWhiteSpace(url)
+                    ? $"upwork:{request.Query}:{currentPage}:{index}"
+                    : url.ToLowerInvariant();
+
+                resultsByUrl[url] = new RawJobData(
+                    ExternalKey: externalSeed,
+                    Title: title,
+                    Company: "Client",
+                    Location: string.IsNullOrWhiteSpace(location) ? "Remote" : location,
+                    Description: string.IsNullOrWhiteSpace(description) ? title : description,
+                    Url: url,
+                    Source: "upwork",
+                    SearchTerm: request.Query,
+                    CapturedAt: now,
+                    MetadataJson: metadata);
+            }
+        }
+
+        return resultsByUrl.Values.Take(targetCount).ToList();
+    }
+
+    private static async Task<bool> IsUpworkBlockedAsync(IPage page)
+    {
+        var url = page.Url.ToLowerInvariant();
+        if (url.Contains("/ab/account-security/login", StringComparison.OrdinalIgnoreCase) ||
+            url.Contains("/login", StringComparison.OrdinalIgnoreCase) ||
+            url.Contains("cloudflareloader", StringComparison.OrdinalIgnoreCase) ||
+            url.Contains("endpointcheck", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var challengeFrames = await page.Locator("iframe[src*='challenges.cloudflare.com']").CountAsync();
+        if (challengeFrames > 0)
+        {
+            return true;
+        }
+
+        var content = (await page.ContentAsync()).ToLowerInvariant();
+        return content.Contains("403 forbidden", StringComparison.Ordinal) ||
+               content.Contains("access denied", StringComparison.Ordinal) ||
+               content.Contains("forbidden", StringComparison.Ordinal) ||
+               content.Contains("failed loading latest asset for accountsecuritynuxt", StringComparison.Ordinal);
+    }
+
     private static string BuildLinkedInJobsSearchUrl(string query, string location)
     {
         var encodedQuery = Uri.EscapeDataString(query);
         var encodedLocation = Uri.EscapeDataString(location);
         return $"https://www.linkedin.com/jobs/search/?keywords={encodedQuery}&location={encodedLocation}";
+    }
+
+    private static string BuildUpworkJobsSearchUrl(string query, int page)
+    {
+        var encodedQuery = Uri.EscapeDataString(query);
+        return $"https://www.upwork.com/nx/search/jobs/?q={encodedQuery}&page={page}";
+    }
+
+    private static string NormalizeUpworkUrl(string href)
+    {
+        if (string.IsNullOrWhiteSpace(href))
+        {
+            return string.Empty;
+        }
+
+        var url = href.Trim();
+        if (!url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            url = "https://www.upwork.com" + (url.StartsWith("/") ? string.Empty : "/") + url;
+        }
+
+        return url.Split('?', '#')[0].TrimEnd('/');
     }
 
     private static bool IsLinkedInAuthRedirect(string url)

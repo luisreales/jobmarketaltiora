@@ -75,12 +75,27 @@ public class AuthController(
                 status.lastUsedAt,
                 status.expiresAt));
         }
+        catch (TimeoutException ex)
+        {
+            return Problem(
+                title: "Authentication timeout",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status408RequestTimeout);
+        }
         catch (InvalidOperationException ex)
         {
             return Problem(
                 title: "Authentication flow requires manual action",
                 detail: ex.Message,
                 statusCode: StatusCodes.Status409Conflict);
+        }
+        catch (PlaywrightException ex)
+        {
+            logger.LogError(ex, "Playwright exception in provider login endpoint");
+            return Problem(
+                title: "Playwright login error",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status502BadGateway);
         }
     }
 

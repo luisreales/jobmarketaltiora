@@ -39,6 +39,133 @@ public class JobsController(
         }
     }
 
+    [HttpPost("search/scrape/upwork")]
+    public async Task<ActionResult<object>> ScrapeUpwork(
+        [FromBody] JobSearchRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var startedAtUtc = DateTime.UtcNow;
+
+            var (savedCount, totalFound) = await orchestrator.SearchAndSaveAsync(
+                request.Query,
+                request.Location,
+                request.Limit,
+                ["upwork"],
+                request.TotalPaging,
+                request.StartPage,
+                request.EndPage,
+                cancellationToken);
+
+            var jobs = await orchestrator.GetJobsAsync(cancellationToken);
+            var touched = jobs
+                .Where(x => x.Source.Equals("upwork", StringComparison.OrdinalIgnoreCase) &&
+                            x.CapturedAt >= startedAtUtc.AddMinutes(-5))
+                .OrderByDescending(x => x.CapturedAt)
+                .Take(25)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Title,
+                    x.Company,
+                    DescriptionPreview = BuildDescriptionPreview(x.Description),
+                    x.Url,
+                    x.SearchTerm,
+                    x.CapturedAt,
+                    DetailEndpoint = $"/api/jobs/upwork/{x.Id}/detail"
+                })
+                .ToList();
+
+            return Ok(new
+            {
+                provider = "upwork",
+                savedCount,
+                totalFound,
+                touchedCount = touched.Count,
+                touched,
+                executedAtUtc = DateTime.UtcNow
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Problem(
+                title: "Upwork scraping requires re-authentication",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status409Conflict);
+        }
+    }
+
+    [HttpPost("search/scrape/upwork/login-and-scrape")]
+    public async Task<ActionResult<object>> LoginAndScrapeUpwork(
+        [FromBody] JobSearchRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var status = await orchestrator.GetAuthStatusAsync("upwork", cancellationToken);
+            if (!status.isAuthenticated)
+            {
+                await orchestrator.LoginAsync("upwork", string.Empty, string.Empty, cancellationToken);
+            }
+
+            var startedAtUtc = DateTime.UtcNow;
+            var (savedCount, totalFound) = await orchestrator.SearchAndSaveAsync(
+                request.Query,
+                request.Location,
+                request.Limit,
+                ["upwork"],
+                request.TotalPaging,
+                request.StartPage,
+                request.EndPage,
+                cancellationToken);
+
+            var jobs = await orchestrator.GetJobsAsync(cancellationToken);
+            var touched = jobs
+                .Where(x => x.Source.Equals("upwork", StringComparison.OrdinalIgnoreCase) &&
+                            x.CapturedAt >= startedAtUtc.AddMinutes(-5))
+                .OrderByDescending(x => x.CapturedAt)
+                .Take(25)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Title,
+                    x.Company,
+                    DescriptionPreview = BuildDescriptionPreview(x.Description),
+                    x.Url,
+                    x.SearchTerm,
+                    x.CapturedAt,
+                    DetailEndpoint = $"/api/jobs/upwork/{x.Id}/detail"
+                })
+                .ToList();
+
+            return Ok(new
+            {
+                provider = "upwork",
+                mode = "login-and-scrape",
+                savedCount,
+                totalFound,
+                touchedCount = touched.Count,
+                touched,
+                executedAtUtc = DateTime.UtcNow
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Problem(
+                title: "Upwork login/scraping requires manual action",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status409Conflict);
+        }
+        catch (TimeoutException ex)
+        {
+            return Problem(
+                title: "Upwork login/scraping timeout",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status408RequestTimeout);
+        }
+    }
+
     [HttpGet("jobs")]
     public async Task<ActionResult<List<JobSummaryDto>>> GetJobs(CancellationToken cancellationToken)
     {
@@ -61,6 +188,55 @@ public class JobsController(
             x.Seniority,
             x.ContractType,
             x.Url)).ToList());
+    }
+
+    [HttpGet("jobs/query")]
+    public async Task<ActionResult<PagedResultDto<JobSummaryDto>>> QueryJobs(
+        [FromQuery] JobsQueryRequest request,
+        CancellationToken cancellationToken)
+    {
+        var normalizedPage = Math.Max(1, request.Page);
+        var normalizedPageSize = Math.Clamp(request.PageSize, 1, 20);
+        var normalizedSortBy = string.IsNullOrWhiteSpace(request.SortBy) ? "capturedAt" : request.SortBy.Trim();
+        var normalizedSortDirection = string.Equals(request.SortDirection, "asc", StringComparison.OrdinalIgnoreCase)
+            ? "asc"
+            : "desc";
+
+        request.Page = normalizedPage;
+        request.PageSize = normalizedPageSize;
+        request.SortBy = normalizedSortBy;
+        request.SortDirection = normalizedSortDirection;
+
+        var (items, totalCount) = await orchestrator.QueryJobsAsync(request, cancellationToken);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)normalizedPageSize));
+
+        var dtoItems = items.Select(x => new JobSummaryDto(
+            x.Id,
+            x.Title,
+            x.Company,
+            x.Location,
+            BuildDescriptionPreview(x.Description),
+            x.Category,
+            x.OpportunityScore,
+            x.IsConsultingCompany,
+            x.CompanyType,
+            x.Source,
+            x.SearchTerm,
+            x.CapturedAt,
+            x.PublishedAt,
+            x.SalaryRange,
+            x.Seniority,
+            x.ContractType,
+            x.Url)).ToList();
+
+        return Ok(new PagedResultDto<JobSummaryDto>(
+            dtoItems,
+            normalizedPage,
+            normalizedPageSize,
+            totalCount,
+            totalPages,
+            normalizedSortBy,
+            normalizedSortDirection));
     }
 
     [HttpGet("jobs/full")]
@@ -90,6 +266,38 @@ public class JobsController(
     {
         var job = await orchestrator.GetJobByIdAsync(id, cancellationToken);
         if (job is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(new JobDetailDto(
+            job.Id,
+            job.ExternalId,
+            job.Title,
+            job.Company,
+            job.Location,
+            job.Description,
+            job.Category,
+            job.OpportunityScore,
+            job.IsConsultingCompany,
+            job.CompanyType,
+            job.Url,
+            job.Contact,
+            job.SalaryRange,
+            job.PublishedAt,
+            job.Seniority,
+            job.ContractType,
+            job.Source,
+            job.SearchTerm,
+            job.CapturedAt,
+            job.MetadataJson));
+    }
+
+    [HttpGet("upwork/{id:int}/detail")]
+    public async Task<ActionResult<JobDetailDto>> GetUpworkDetailById(int id, CancellationToken cancellationToken)
+    {
+        var job = await orchestrator.GetJobByIdAsync(id, cancellationToken);
+        if (job is null || !job.Source.Equals("upwork", StringComparison.OrdinalIgnoreCase))
         {
             return NotFound();
         }

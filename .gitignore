@@ -34,6 +34,10 @@ frontend/dist/
 frontend/.angular/
 frontend/.cache/
 frontend/coverage/
+scraper-api/node_modules/
+
+# Scraper runtime state
+scraper-api/.upwork-session.json
 
 # Playwright
 **/playwright-report/

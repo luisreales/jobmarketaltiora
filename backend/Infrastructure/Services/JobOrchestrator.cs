@@ -12,6 +12,7 @@ public class JobOrchestrator(
     IProviderSessionRepository sessionRepository,
     IEnumerable<IJobProvider> providers,
     ISessionManager sessionManager,
+    IUpworkScraperClient upworkScraperClient,
     IConfiguration configuration,
     ILogger<JobOrchestrator> logger) : IJobOrchestrator
 {
@@ -26,13 +27,38 @@ public class JobOrchestrator(
             return;
         }
 
-        // Credentials are loaded from configuration to avoid accidental runtime input leakage.
-        username = configuration.GetValue<string>("Jobs:Credentials:LinkedIn:Username") ?? string.Empty;
-        password = configuration.GetValue<string>("Jobs:Credentials:LinkedIn:Password") ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new InvalidOperationException("provider is required");
+        }
+
+        var providerSectionName = normalized switch
+        {
+            "linkedin" => "LinkedIn",
+            "upwork" => "Upwork",
+            _ => char.ToUpperInvariant(normalized[0]) + normalized[1..]
+        };
+
+        var credentialsSection = configuration.GetSection($"Jobs:Credentials:{providerSectionName}");
+        username = credentialsSection.GetValue<string>("Username") ?? string.Empty;
+        password = credentialsSection.GetValue<string>("Password") ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
         {
-            throw new InvalidOperationException("Missing Jobs:Credentials:LinkedIn:Username or Password in appsettings");
+            throw new InvalidOperationException($"Missing Jobs:Credentials:{normalized}:Username or Password in appsettings");
+        }
+
+        if (normalized == "upwork")
+        {
+            var loginResult = await upworkScraperClient.LoginAsync(username.Trim(), password, cancellationToken);
+            if (!loginResult.IsAuthenticated)
+            {
+                throw new InvalidOperationException("Upwork login was not authenticated by scraper API.");
+            }
+
+            var defaultExpiration = DateTime.UtcNow.AddHours(Math.Clamp(configuration.GetValue<int?>("Jobs:Playwright:SessionHours") ?? 12, 1, 168));
+            await sessionRepository.UpsertLoginAsync(normalized, username.Trim(), loginResult.ExpiresAt ?? defaultExpiration, cancellationToken);
+            return;
         }
 
         await sessionManager.LoginAsync(normalized, username.Trim(), password, cancellationToken);
@@ -56,7 +82,9 @@ public class JobOrchestrator(
         }
 
         var session = await sessionRepository.GetCurrentAsync(normalized, cancellationToken);
-        var isAuthenticated = await sessionManager.ValidateAsync(normalized, cancellationToken);
+        var isAuthenticated = normalized == "upwork"
+            ? await sessionRepository.IsAuthenticatedAsync(normalized, cancellationToken)
+            : await sessionManager.ValidateAsync(normalized, cancellationToken);
         return (isAuthenticated, session?.LastLoginAt, session?.LastUsedAt, session?.ExpiresAt);
     }
 
@@ -117,6 +145,13 @@ public class JobOrchestrator(
         return jobRepository.GetAllAsync(cancellationToken);
     }
 
+    public Task<(List<JobOffer> Items, int TotalCount)> QueryJobsAsync(
+        JobsQueryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return jobRepository.QueryAsync(request, cancellationToken);
+    }
+
     public async Task<List<JobOffer>> GetHighValueLeadsAsync(CancellationToken cancellationToken = default)
     {
         var jobs = await jobRepository.GetAllAsync(cancellationToken);
@@ -142,27 +177,37 @@ public class JobOrchestrator(
             var isAuth = await provider.IsAuthenticatedAsync(cancellationToken);
             if (!isAuth && ProviderRequiresAuthentication(provider.Name))
             {
-                logger.LogWarning("Skipping provider {Provider} because auth session is not valid.", provider.Name);
-                return [];
+                throw new InvalidOperationException(
+                    $"{provider.Name} session is not valid. Re-authenticate with POST /api/auth/login.");
             }
 
-            var retryPolicy = Policy
-                .Handle<Exception>()
-                .WaitAndRetryAsync(
-                    3,
-                    attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt - 1)),
-                    (ex, delay, attempt, _) =>
-                    {
-                        logger.LogWarning(ex,
-                            "Provider {Provider} failed on attempt {Attempt}. Retrying in {Delay}s.",
-                            provider.Name,
-                            attempt,
-                            delay.TotalSeconds);
-                    });
-
-            var timeoutSeconds = Math.Clamp(configuration.GetValue<int?>("Jobs:Providers:TimeoutSeconds") ?? 90, 10, 300);
+            var timeoutSeconds = provider.Name.Equals("upwork", StringComparison.OrdinalIgnoreCase)
+                ? Math.Clamp(configuration.GetValue<int?>("Jobs:Upwork:ProviderTimeoutSeconds") ?? 900, 30, 1800)
+                : Math.Clamp(configuration.GetValue<int?>("Jobs:Providers:TimeoutSeconds") ?? 90, 10, 300);
             var timeoutPolicy = Policy.TimeoutAsync(timeoutSeconds, TimeoutStrategy.Optimistic);
-            var policy = Policy.WrapAsync(retryPolicy, timeoutPolicy);
+            IAsyncPolicy policy;
+            if (provider.Name.Equals("upwork", StringComparison.OrdinalIgnoreCase))
+            {
+                policy = timeoutPolicy;
+            }
+            else
+            {
+                policy = Policy.WrapAsync(
+                    Policy
+                        .Handle<Exception>(ex => ex is not InvalidOperationException)
+                        .WaitAndRetryAsync(
+                            3,
+                            attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt - 1)),
+                            (ex, delay, attempt, _) =>
+                            {
+                                logger.LogWarning(ex,
+                                    "Provider {Provider} failed on attempt {Attempt}. Retrying in {Delay}s.",
+                                    provider.Name,
+                                    attempt,
+                                    delay.TotalSeconds);
+                            }),
+                    timeoutPolicy);
+                            }
 
             var jobs = await policy.ExecuteAsync(
                 async ct => await provider.SearchAsync(request, ct),
@@ -175,8 +220,19 @@ public class JobOrchestrator(
 
             return jobs ?? [];
         }
+        catch (InvalidOperationException)
+        {
+            // Surface auth/session errors to controller so API returns 409 instead of silent zero results.
+            throw;
+        }
         catch (Exception ex)
         {
+            if (ProviderRequiresAuthentication(provider.Name))
+            {
+                throw new InvalidOperationException(
+                    $"{provider.Name} scraping failed and requires manual re-authentication.", ex);
+            }
+
             logger.LogWarning(ex, "Provider {Provider} failed while scraping query {Query}", provider.Name, request.Query);
             return [];
         }
@@ -205,6 +261,7 @@ public class JobOrchestrator(
 
     private static bool ProviderRequiresAuthentication(string provider)
     {
-        return NormalizeProvider(provider) == "linkedin";
+        var normalized = NormalizeProvider(provider);
+        return normalized is "linkedin" or "upwork";
     }
 }

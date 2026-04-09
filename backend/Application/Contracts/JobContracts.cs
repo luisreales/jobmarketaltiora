@@ -15,6 +15,29 @@ public record JobSearchRequest(
 
 public record JobSearchResponse(int SavedCount, int TotalFound, DateTime ExecutedAtUtc);
 
+public class JobsQueryRequest
+{
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+    public string SortBy { get; set; } = "capturedAt";
+    public string SortDirection { get; set; } = "desc";
+    public string? Title { get; set; }
+    public string? Company { get; set; }
+    public string? Location { get; set; }
+    public string? Source { get; set; }
+    public string? SearchTerm { get; set; }
+    public string? SalaryRange { get; set; }
+}
+
+public record PagedResultDto<T>(
+    IReadOnlyCollection<T> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    int TotalPages,
+    string SortBy,
+    string SortDirection);
+
 public class JobFilter
 {
     public int? MinScore { get; set; }

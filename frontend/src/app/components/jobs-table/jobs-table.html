@@ -1,32 +1,87 @@
-@if (jobs.length === 0) {
-  <p class="empty-state">No jobs found yet.</p>
-} @else {
-  <div class="table-container">
-    <table>
-      <thead>
-        <tr>
-          <th>Title</th>
-          <th>Company</th>
-          <th>Location</th>
-          <th>Source</th>
-          <th>Salary</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (job of jobs; track job.id) {
-          <tr>
-            <td>{{ job.title }}</td>
-            <td>{{ job.company }}</td>
-            <td>{{ job.location }}</td>
-            <td>{{ job.source }}</td>
-            <td>{{ job.salaryRange ?? 'N/A' }}</td>
-            <td>
-              <a [routerLink]="['/jobs', job.id]">View</a>
-            </td>
-          </tr>
+<div class="jobs-layout">
+  <aside class="filters-panel">
+    <div class="filters-header">
+      <h3>Filters</h3>
+      <button type="button" (click)="clearFilters()">Clear</button>
+    </div>
+
+    @for (filter of filterDefinitions; track filter.key) {
+      <label>
+        <span>{{ filter.label }}</span>
+        <input
+          type="text"
+          [placeholder]="filter.placeholder"
+          [value]="filters[filter.key]"
+          (input)="updateFilter(filter.key, $any($event.target).value)" />
+      </label>
+    }
+
+    <label>
+      <span>Rows per page</span>
+      <select [value]="pageSize" (change)="changePageSize(+$any($event.target).value)">
+        @for (size of pageSizes; track size) {
+          <option [value]="size">{{ size }}</option>
         }
-      </tbody>
-    </table>
+      </select>
+    </label>
+
+    <p class="filters-meta">
+      Showing <strong>{{ jobs.length }}</strong> of <strong>{{ totalCount }}</strong> records
+    </p>
+  </aside>
+
+  <div class="table-shell">
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th><button type="button" class="th-button" (click)="toggleSort('title')">Title</button></th>
+            <th><button type="button" class="th-button" (click)="toggleSort('company')">Company</button></th>
+            <th><button type="button" class="th-button" (click)="toggleSort('location')">Location</button></th>
+            <th><button type="button" class="th-button" (click)="toggleSort('source')">Source</button></th>
+            <th><button type="button" class="th-button" (click)="toggleSort('salaryRange')">Salary</button></th>
+            <th><button type="button" class="th-button" (click)="toggleSort('capturedAt')">Captured</button></th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (job of jobs; track job.id) {
+            <tr>
+              <td>{{ job.title }}</td>
+              <td>{{ job.company }}</td>
+              <td>{{ job.location }}</td>
+              <td><span class="source-pill">{{ job.source }}</span></td>
+              <td>{{ job.salaryRange ?? 'N/A' }}</td>
+              <td>{{ job.capturedAt | date: 'short' }}</td>
+              <td>
+                <a [routerLink]="['/jobs', job.id]">View</a>
+              </td>
+            </tr>
+          }
+
+          @if (!jobs.length && !loading) {
+            <tr>
+              <td colspan="7" class="empty-row">No jobs match the current filters.</td>
+            </tr>
+          }
+
+          @if (loading) {
+            <tr>
+              <td colspan="7" class="empty-row">Loading jobs...</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination">
+      <button type="button" (click)="previousPage()" [disabled]="pageIndex === 1 || loading">Prev</button>
+      <div class="page-list">
+        @for (page of pageRange; track page) {
+          <button type="button" [class.active]="page === pageIndex" (click)="goToPage(page)" [disabled]="loading">{{ page }}</button>
+        }
+      </div>
+      <button type="button" (click)="nextPage()" [disabled]="pageIndex === totalPages || loading">Next</button>
+    </div>
   </div>
-}
+</div>

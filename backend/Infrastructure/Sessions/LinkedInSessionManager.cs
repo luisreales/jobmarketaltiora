@@ -75,6 +75,11 @@ public sealed class LinkedInSessionManager(
     public Task ClearAsync(string provider, CancellationToken ct = default)
     {
         provider = provider.Trim().ToLowerInvariant();
+        if (provider != "linkedin")
+        {
+            return Task.CompletedTask;
+        }
+
         var storagePath = GetStorageStatePath(provider);
         if (File.Exists(storagePath))
         {

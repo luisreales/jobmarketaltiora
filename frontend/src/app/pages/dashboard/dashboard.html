@@ -1,12 +1,16 @@
 <section class="panel">
 	<div class="header-row">
-		<h2>LinkedIn Jobs Guardadas</h2>
-		<button type="button" (click)="refresh()">Refrescar</button>
+		<h2>Jobs Guardadas (LinkedIn + Upwork)</h2>
+		<button type="button" (click)="reloadCurrentQuery()">Refrescar</button>
 	</div>
-	<p>Todas las vacantes capturadas y almacenadas por el backend.</p>
+	<p>Filtros, ordenacion y paginacion se procesan en backend para mejorar rendimiento.</p>
 
 	<p *ngIf="loading">Cargando vacantes...</p>
-	<p *ngIf="!loading && !jobs.length">No hay vacantes guardadas todavía.</p>
 
-	<app-jobs-table *ngIf="jobs.length" [jobs]="jobs"></app-jobs-table>
+	<app-jobs-table
+		[jobs]="jobs"
+		[totalCount]="totalCount"
+		[loading]="loading"
+		(queryChange)="refresh($event)">
+	</app-jobs-table>
 </section>

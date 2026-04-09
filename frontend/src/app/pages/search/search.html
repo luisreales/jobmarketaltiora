@@ -1,31 +1,50 @@
 <section class="search-shell">
-	<h2>Autenticacion y Scraping LinkedIn</h2>
+	<h2>Auth + Scraping Workspace</h2>
 
 	<section class="card">
-		<h3>1. Conexion LinkedIn</h3>
+		<h3>1. Conexiones</h3>
 		<div class="form-grid">
-			<button type="button" (click)="connect()" [disabled]="isConnected || loading">Conectar</button>
-			<button type="button" (click)="disconnect()" [disabled]="!isConnected || loading">Desconectar</button>
+			<button type="button" (click)="connectLinkedIn()" [disabled]="isLinkedInConnected || loading">Conectar LinkedIn</button>
+			<button type="button" (click)="disconnect()" [disabled]="!isLinkedInConnected || loading">Desconectar LinkedIn</button>
+			<button type="button" (click)="connectUpwork()" [disabled]="loading">Login Upwork</button>
+			<button type="button" (click)="refreshStatus()">Actualizar estados</button>
+		</div>
+		<div class="status-grid">
+			<p>
+				<strong>LinkedIn:</strong>
+				<span [class.ok]="isLinkedInConnected">{{ isLinkedInConnected ? 'Conectado' : 'No conectado' }}</span>
+			</p>
+			<p>
+				<strong>Upwork:</strong>
+				<span [class.ok]="isUpworkConnected">{{ isUpworkConnected ? 'Conectado' : 'No conectado' }}</span>
+			</p>
 		</div>
 	</section>
 
 	<section class="card">
 		<h3>Estado de sesion</h3>
-		<p *ngIf="authStatus && !authError; else noStatus">
-			Estado usuario LinkedIn: <strong>{{ authStatus.isAuthenticated ? 'Conectado' : 'Desconectado' }}</strong><br />
-			Ultimo login: {{ authStatus.lastLoginAt || 'N/A' }}<br />
-			Ultimo uso: {{ authStatus.lastUsedAt || 'N/A' }}<br />
-			Expira: {{ authStatus.expiresAt || 'N/A' }}
+		<p *ngIf="upworkAuthStatus && !authError; else noStatus">
+			Estado Upwork: <strong>{{ upworkAuthStatus.isAuthenticated ? 'Conectado' : 'Desconectado' }}</strong><br />
+			Ultimo login: {{ upworkAuthStatus.lastLoginAt || 'N/A' }}<br />
+			Ultimo uso: {{ upworkAuthStatus.lastUsedAt || 'N/A' }}<br />
+			Expira: {{ upworkAuthStatus.expiresAt || 'N/A' }}
 		</p>
 		<ng-template #noStatus>
 			<p>No se pudo obtener estado de autenticacion.</p>
 		</ng-template>
-		<button type="button" (click)="refreshStatus()">Actualizar estado</button>
 	</section>
 
 	<section class="card">
 		<h3>2. Ejecutar scraping desde backend</h3>
 		<form [formGroup]="scrapeForm" (ngSubmit)="runScraping()" class="form-grid">
+			<label>
+				Modo
+				<select formControlName="mode">
+					<option value="upwork-scrape">Upwork Scrape (usar sesion existente)</option>
+					<option value="upwork-login-and-scrape">Upwork Login + Scrape</option>
+					<option value="linkedin-scrape">LinkedIn Scrape</option>
+				</select>
+			</label>
 			<label>
 				Keyword
 				<input type="text" formControlName="query" />
@@ -38,6 +57,14 @@
 				Limite
 				<input type="number" formControlName="limit" min="1" max="100" />
 			</label>
+			<label>
+				Pagina inicial
+				<input type="number" formControlName="startPage" min="1" max="50" />
+			</label>
+			<label>
+				Pagina final
+				<input type="number" formControlName="endPage" min="1" max="50" />
+			</label>
 			<button type="submit">Ejecutar scraping</button>
 		</form>
 
@@ -46,5 +73,49 @@
 			Encontradas: <strong>{{ scrapeResult.totalFound }}</strong> |
 			Guardadas nuevas: <strong>{{ scrapeResult.savedCount }}</strong>
 		</p>
+	</section>
+
+	<section class="card" *ngIf="upworkTouchedJobs.length">
+		<h3>3. Resultados tocados (Upwork)</h3>
+		<div class="table-wrap">
+			<table>
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>Titulo</th>
+						<th>Empresa</th>
+						<th>Descripcion (preview)</th>
+						<th>Capturado</th>
+						<th>Acciones</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr *ngFor="let job of upworkTouchedJobs">
+						<td>{{ job.id }}</td>
+						<td>{{ job.title }}</td>
+						<td>{{ job.company }}</td>
+						<td>{{ job.descriptionPreview || 'Sin preview' }}</td>
+						<td>{{ job.capturedAt | date: 'short' }}</td>
+						<td class="actions-cell">
+							<button type="button" (click)="openUpworkDetail(job.id)">Ver detalle</button>
+							<a *ngIf="job.url" [href]="job.url" target="_blank" rel="noopener noreferrer">Abrir Upwork</a>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<section class="card" *ngIf="selectedUpworkDetail || loadingDetail">
+		<h3>4. Detalle completo</h3>
+		<p *ngIf="loadingDetail">Cargando detalle completo...</p>
+		<article *ngIf="selectedUpworkDetail" class="detail-panel">
+			<h4>{{ selectedUpworkDetail.title }}</h4>
+			<p><strong>Empresa:</strong> {{ selectedUpworkDetail.company }}</p>
+			<p><strong>Ubicacion:</strong> {{ selectedUpworkDetail.location }}</p>
+			<p><strong>Search term:</strong> {{ selectedUpworkDetail.searchTerm }}</p>
+			<p><strong>Descripcion:</strong></p>
+			<p class="description-full">{{ selectedUpworkDetail.description }}</p>
+		</article>
 	</section>
 </section>

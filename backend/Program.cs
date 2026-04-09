@@ -33,8 +33,16 @@ builder.Services.AddScoped<IJobProcessingService, JobProcessingService>();
 builder.Services.AddSingleton<IBrowserPool, BrowserPool>();
 builder.Services.AddScoped<IPlaywrightScraper, PlaywrightScraper>();
 builder.Services.AddScoped<ISessionManager, LinkedInSessionManager>();
+builder.Services.AddHttpClient<IUpworkScraperClient, UpworkScraperClient>((serviceProvider, client) =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var baseUrl = configuration.GetValue<string>("UpworkScraper:BaseUrl") ?? "http://localhost:3000";
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(Math.Clamp(configuration.GetValue<int?>("UpworkScraper:TimeoutSeconds") ?? 120, 10, 600));
+});
 builder.Services.AddScoped<IJobProvider, LinkedInProvider>();
 builder.Services.AddScoped<IJobProvider, IndeedProvider>();
+builder.Services.AddScoped<IJobProvider, UpworkProvider>();
 builder.Services.AddScoped<IJobOrchestrator, JobOrchestrator>();
 builder.Services.Configure<LinkedInAuthOptions>(builder.Configuration.GetSection("LinkedInAuth"));
 builder.Services.AddSingleton<ILinkedInAuthService, LinkedInAuthService>();

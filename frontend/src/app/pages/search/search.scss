@@ -3,6 +3,9 @@
 	border-radius: 20px;
 	background: rgba(255, 255, 255, 0.9);
 	padding: 1.2rem;
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
 }
 
 h2 {
@@ -10,8 +13,137 @@ h2 {
 	color: #243a26;
 }
 
+.card {
+	border: 1px solid rgba(43, 70, 46, 0.14);
+	border-radius: 14px;
+	padding: 1rem;
+	background: #fcfffb;
+}
+
+.form-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0.8rem;
+	align-items: end;
+}
+
+label {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	font-size: 0.9rem;
+	color: #315335;
+}
+
+input,
+select,
+button {
+	font: inherit;
+}
+
+input,
+select {
+	padding: 0.48rem 0.55rem;
+	border: 1px solid rgba(46, 88, 53, 0.3);
+	border-radius: 10px;
+	background: #fff;
+}
+
+button {
+	padding: 0.52rem 0.72rem;
+	border: 1px solid rgba(40, 73, 45, 0.22);
+	border-radius: 10px;
+	background: #f0f8ef;
+	color: #234327;
+	cursor: pointer;
+}
+
+button:hover {
+	background: #e1f2de;
+}
+
+.status-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.6rem;
+	margin-top: 0.8rem;
+}
+
+.status-grid p {
+	margin: 0;
+	padding: 0.55rem 0.65rem;
+	border-radius: 10px;
+	background: #f2faf1;
+	font-size: 0.88rem;
+}
+
+.ok {
+	color: #1f6f37;
+	font-weight: 700;
+}
+
 .status {
 	color: #48674b;
+}
+
+.table-wrap {
+	overflow-x: auto;
+	border: 1px solid rgba(43, 70, 46, 0.15);
+	border-radius: 12px;
+	background: #fff;
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.9rem;
+}
+
+th,
+td {
+	padding: 0.55rem 0.6rem;
+	border-bottom: 1px solid rgba(43, 70, 46, 0.1);
+	text-align: left;
+	vertical-align: top;
+}
+
+th {
+	background: #eef8ec;
+	font-weight: 700;
+	color: #213625;
+}
+
+.actions-cell {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+}
+
+.actions-cell a {
+	color: #1d5c2d;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.actions-cell a:hover {
+	text-decoration: underline;
+}
+
+.detail-panel {
+	border: 1px solid rgba(43, 70, 46, 0.15);
+	border-radius: 12px;
+	padding: 0.9rem;
+	background: #fff;
+}
+
+.detail-panel h4 {
+	margin: 0 0 0.5rem;
+	color: #1f3522;
+}
+
+.description-full {
+	white-space: pre-wrap;
+	line-height: 1.5;
 }
 
 .results-accordion {
@@ -115,6 +247,14 @@ h2 {
 }
 
 @media (max-width: 800px) {
+	.form-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.status-grid {
+		grid-template-columns: 1fr;
+	}
+
 	.offer-item {
 		flex-direction: column;
 	}

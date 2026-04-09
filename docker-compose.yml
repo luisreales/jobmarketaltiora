@@ -26,6 +26,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      scraper-api:
+        condition: service_started
     ports:
       - "8080:8080"
     environment:
@@ -33,9 +35,27 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=jobmarketaltiora_db;Username=postgres;Password=postgres
       Jobs__Playwright__LoginHeadless: "true"
+      UpworkScraper__BaseUrl: ${UPWORK_SCRAPER_BASE_URL:-http://scraper-api:3000}
+      UpworkScraper__TimeoutSeconds: "900"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./backend/playwright-state:/app/playwright-state
       - ./backend/data:/app/data
+
+  scraper-api:
+    build:
+      context: ./scraper-api
+      dockerfile: Dockerfile
+    container_name: jobmarketaltiora-scraper-api
+    restart: unless-stopped
+    shm_size: '2gb'
+    environment:
+      UPWORK_HEADLESS: "true"
+      MANUAL_LOGIN_TIMEOUT_SECONDS: "300"
+      UPWORK_FORCE_MANUAL_LOGIN: "false"
+    ports:
+      - "3000:3000"
 
   frontend:
     build:
