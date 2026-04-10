@@ -21,12 +21,15 @@ public class JobsQueryRequest
     public int PageSize { get; set; } = 20;
     public string SortBy { get; set; } = "capturedAt";
     public string SortDirection { get; set; } = "desc";
+    public string? Search { get; set; }
     public string? Title { get; set; }
     public string? Company { get; set; }
     public string? Location { get; set; }
     public string? Source { get; set; }
     public string? SearchTerm { get; set; }
     public string? SalaryRange { get; set; }
+    public int? MinSalary { get; set; }
+    public int? MaxSalary { get; set; }
 }
 
 public record PagedResultDto<T>(

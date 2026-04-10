@@ -3,6 +3,7 @@ using backend.Domain.Entities;
 using backend.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using backend.Application.Contracts;
+using System.Text.RegularExpressions;
 
 namespace backend.Infrastructure.Repositories;
 
@@ -24,6 +25,18 @@ public class JobRepository(ApplicationDbContext dbContext) : IJobRepository
         var pageSize = Math.Clamp(request.PageSize, 1, 20);
 
         IQueryable<JobOffer> query = dbContext.JobOffers.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var search = request.Search.Trim();
+            query = query.Where(x =>
+                EF.Functions.ILike(x.Title, $"%{search}%") ||
+                EF.Functions.ILike(x.Company, $"%{search}%") ||
+                EF.Functions.ILike(x.Location, $"%{search}%") ||
+                EF.Functions.ILike(x.Source, $"%{search}%") ||
+                EF.Functions.ILike(x.SearchTerm, $"%{search}%") ||
+                EF.Functions.ILike(x.SalaryRange ?? string.Empty, $"%{search}%"));
+        }
 
         if (!string.IsNullOrWhiteSpace(request.Title))
         {
@@ -63,14 +76,42 @@ public class JobRepository(ApplicationDbContext dbContext) : IJobRepository
 
         query = ApplySorting(query, request.SortBy, request.SortDirection);
 
-        var totalCount = await query.CountAsync(cancellationToken);
+        var requireSalaryFilter = request.MinSalary.HasValue || request.MaxSalary.HasValue;
+        if (!requireSalaryFilter)
+        {
+            var totalCount = await query.CountAsync(cancellationToken);
+            var pagedItems = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
 
-        var items = await query
+            return (pagedItems, totalCount);
+        }
+
+        var minSalary = request.MinSalary ?? 0;
+        var maxSalary = request.MaxSalary ?? int.MaxValue;
+        var materialized = await query.ToListAsync(cancellationToken);
+
+        var filteredBySalary = materialized
+            .Where(job =>
+            {
+                if (!TryParseSalaryRange(job.SalaryRange, out var range))
+                {
+                    return false;
+                }
+
+                var (rangeMin, rangeMax) = range;
+                return rangeMax >= minSalary && rangeMin <= maxSalary;
+            })
+            .ToList();
+
+        var totalAfterSalary = filteredBySalary.Count;
+        var items = filteredBySalary
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync(cancellationToken);
+            .ToList();
 
-        return (items, totalCount);
+        return (items, totalAfterSalary);
     }
 
     public async Task<JobOffer?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
@@ -151,5 +192,38 @@ public class JobRepository(ApplicationDbContext dbContext) : IJobRepository
             "salaryrange" => isDescending ? query.OrderByDescending(x => x.SalaryRange) : query.OrderBy(x => x.SalaryRange),
             _ => isDescending ? query.OrderByDescending(x => x.CapturedAt) : query.OrderBy(x => x.CapturedAt)
         };
+    }
+
+    private static bool TryParseSalaryRange(string? salaryRange, out (int Min, int Max) range)
+    {
+        if (string.IsNullOrWhiteSpace(salaryRange))
+        {
+            range = default;
+            return false;
+        }
+
+        var matches = Regex.Matches(salaryRange, @"\d+[\d,.]*")
+            .Select(m => m.Value)
+            .Select(value => value.Replace(",", string.Empty).Replace(".", string.Empty))
+            .Select(value => int.TryParse(value, out var parsed) ? parsed : 0)
+            .Where(value => value > 0)
+            .ToList();
+
+        if (matches.Count == 0)
+        {
+            range = default;
+            return false;
+        }
+
+        if (matches.Count == 1)
+        {
+            range = (matches[0], matches[0]);
+            return true;
+        }
+
+        var min = Math.Min(matches[0], matches[1]);
+        var max = Math.Max(matches[0], matches[1]);
+        range = (min, max);
+        return true;
     }
 }

@@ -85,12 +85,15 @@ export interface JobsQueryRequest {
   pageSize?: number;
   sortBy?: string;
   sortDirection?: 'asc' | 'desc';
+  search?: string;
   title?: string;
   company?: string;
   location?: string;
   source?: string;
   searchTerm?: string;
   salaryRange?: string;
+  minSalary?: number;
+  maxSalary?: number;
 }
 
 export interface PagedJobSummaryResponse {

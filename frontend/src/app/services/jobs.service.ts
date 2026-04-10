@@ -73,12 +73,15 @@ export class JobsService {
         pageSize: String(request.pageSize ?? 20),
         sortBy: request.sortBy ?? 'capturedAt',
         sortDirection: request.sortDirection ?? 'desc',
+        search: request.search ?? '',
         title: request.title ?? '',
         company: request.company ?? '',
         location: request.location ?? '',
         source: request.source ?? '',
         searchTerm: request.searchTerm ?? '',
-        salaryRange: request.salaryRange ?? ''
+        salaryRange: request.salaryRange ?? '',
+        minSalary: request.minSalary != null ? String(request.minSalary) : '',
+        maxSalary: request.maxSalary != null ? String(request.maxSalary) : ''
       }
     });
   }

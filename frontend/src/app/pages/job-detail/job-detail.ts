@@ -14,19 +14,27 @@ import { JobDetailCardComponent } from '../../components/job-detail-card/job-det
 export class JobDetail implements OnInit {
   jobId = 0;
   job: LinkedInJobDetail | null = null;
+  loading = true;
   private readonly route = inject(ActivatedRoute);
   private readonly jobsService = inject(JobsService);
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     if (!id) {
+      this.loading = false;
       return;
     }
 
     this.jobId = id;
     this.jobsService.getJobById(id).subscribe({
-      next: (job) => (this.job = job),
-      error: () => (this.job = null)
+      next: (job) => {
+        this.job = job;
+        this.loading = false;
+      },
+      error: () => {
+        this.job = null;
+        this.loading = false;
+      }
     });
   }
 }
