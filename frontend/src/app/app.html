@@ -1,1 +1,35 @@
-<router-outlet></router-outlet>
+<div class="app-shell">
+	<button
+		(click)="toggleSidebar()"
+		aria-label="Toggle navigation"
+		class="mobile-menu-button"
+		type="button">
+		Menu
+	</button>
+
+	<aside [class.is-open]="isSidebarOpen" class="sidebar">
+		<div class="brand">Altiora</div>
+
+		<nav class="nav-links" aria-label="Main navigation">
+			<a
+				*ngFor="let item of navigationItems"
+				(click)="closeSidebar()"
+				[routerLink]="item.path"
+				routerLinkActive="is-active"
+				class="nav-link">
+				{{ item.label }}
+			</a>
+		</nav>
+	</aside>
+
+	<div
+		(click)="closeSidebar()"
+		[class.is-visible]="isSidebarOpen"
+		aria-hidden="true"
+		class="sidebar-backdrop">
+	</div>
+
+	<main class="content">
+		<router-outlet></router-outlet>
+	</main>
+</div>

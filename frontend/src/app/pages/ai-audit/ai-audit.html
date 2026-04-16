@@ -1,0 +1,331 @@
+<section class="min-h-[100dvh] bg-slate-100 p-4 md:p-8">
+  <div class="mx-auto max-w-6xl rounded-3xl bg-white p-6 shadow-xl md:p-8">
+    <header class="mb-6">
+      <h1 class="text-2xl font-extrabold text-slate-900">AI Audit</h1>
+      <p class="text-sm text-slate-500">Monitorea consumo, prompts y respuestas de la capa de inteligencia.</p>
+    </header>
+
+    <section class="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 class="text-sm font-bold uppercase tracking-wide text-slate-600">Salud LLM</h2>
+          <p class="text-xs text-slate-500">Estado operativo de la conexion con el modelo configurado.</p>
+        </div>
+
+        <div *ngIf="llmHealth; else llmHealthUnavailable" class="flex items-center gap-3">
+          <span
+            class="inline-block h-3 w-3 rounded-full"
+            [class.bg-emerald-500]="llmHealthIsGreen"
+            [class.bg-rose-500]="!llmHealthIsGreen"></span>
+          <div class="text-right">
+            <p class="text-sm font-semibold" [class.text-emerald-700]="llmHealthIsGreen" [class.text-rose-700]="!llmHealthIsGreen">
+              {{ llmHealth.state }} · {{ llmHealth.modelId || 'N/A' }}
+            </p>
+            <p class="text-xs text-slate-500">{{ llmHealth.message }}</p>
+          </div>
+        </div>
+
+        <ng-template #llmHealthUnavailable>
+          <p class="text-xs text-slate-500">No se pudo obtener el estado del LLM.</p>
+        </ng-template>
+      </div>
+    </section>
+
+    <section class="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div class="mb-3 flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-600">Prompt Admin</h2>
+        <p class="text-xs text-slate-500">Key: {{ promptTemplateKey }} · Source: {{ promptSource || 'loading...' }}</p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+        <input
+          [(ngModel)]="promptVersion"
+          aria-label="Prompt version"
+          class="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+          placeholder="version"
+          type="text" />
+
+        <input
+          [value]="promptUpdatedAt ? (promptUpdatedAt | date:'short') : 'N/A'"
+          aria-label="Prompt updated at"
+          class="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-500"
+          disabled
+          type="text" />
+
+        <input
+          [value]="promptUpdatedBy || 'N/A'"
+          aria-label="Prompt updated by"
+          class="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-500"
+          disabled
+          type="text" />
+      </div>
+
+      <textarea
+        [(ngModel)]="promptTemplate"
+        aria-label="Prompt template"
+        class="mt-3 min-h-32 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-xs"
+        placeholder="Write prompt template. Use placeholders shown below."></textarea>
+
+      <div class="mt-3 flex items-center justify-between gap-3">
+        <p class="text-xs text-slate-500">Use placeholders: {{'{{Title}}'}} {{'{{Company}}'}} {{'{{Description}}'}}</p>
+        <button
+          (click)="savePromptTemplate()"
+          [disabled]="promptSaving || promptLoading || !promptTemplate.trim()"
+          class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          type="button">
+          {{ promptSaving ? 'Guardando...' : 'Guardar prompt' }}
+        </button>
+      </div>
+
+      <p *ngIf="promptStatusMessage" class="mt-2 text-xs text-slate-600">{{ promptStatusMessage }}</p>
+    </section>
+
+    <section class="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div class="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-600">Worker Runtime</h2>
+        <button
+          (click)="runWorkerNow()"
+          [disabled]="workerRunLoading || workerStatusLoading"
+          class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          type="button">
+          <span class="inline-flex items-center gap-2">
+            <span *ngIf="workerRunLoading" class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+            {{ workerRunLoading ? 'Ejecutando...' : 'Ejecutar ahora' }}
+          </span>
+        </button>
+      </div>
+
+      <div *ngIf="workerStatus; else workerUnavailable" class="grid grid-cols-1 gap-2 md:grid-cols-3">
+        <article class="rounded-xl border border-slate-200 bg-white p-3">
+          <p class="text-xs text-slate-500">Frecuencia</p>
+          <p class="text-sm font-semibold text-slate-900">{{ workerIntervalLabel }}</p>
+        </article>
+        <article class="rounded-xl border border-slate-200 bg-white p-3">
+          <p class="text-xs text-slate-500">Ultima ejecucion completada</p>
+          <p class="text-sm font-semibold text-slate-900">{{ workerStatus.lastCompletedAt ? (workerStatus.lastCompletedAt | date:'short') : 'Aun no ejecutado' }}</p>
+          <p class="text-xs text-slate-500">Procesados: {{ workerStatus.lastProcessedJobs }}</p>
+        </article>
+        <article class="rounded-xl border border-slate-200 bg-white p-3">
+          <p class="text-xs text-slate-500">Estado</p>
+          <p class="text-sm font-semibold" [class.text-emerald-700]="workerStatus.lastOutcome === 'success'" [class.text-rose-700]="workerStatus.lastOutcome === 'failed'">
+            {{ workerStatus.isRunning ? 'Corriendo ahora' : workerStatus.lastOutcome }}
+          </p>
+          <p class="text-xs text-slate-500">Trigger: {{ workerStatus.lastTrigger }}</p>
+        </article>
+      </div>
+
+      <ng-template #workerUnavailable>
+        <p class="text-xs text-slate-500">No se pudo obtener el estado del worker.</p>
+      </ng-template>
+
+      <p *ngIf="lastManualRunAt" class="mt-2 text-xs text-slate-500">
+        Ultima ejecucion manual: {{ lastManualRunAt | date:'short' }} · Procesados: {{ lastManualProcessedJobs ?? 0 }}
+      </p>
+      <p *ngIf="workerMessage" class="mt-2 text-xs text-slate-600">{{ workerMessage }}</p>
+    </section>
+
+    <section *ngIf="summary" class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p class="text-xs text-slate-500">Total Calls</p>
+        <p class="text-xl font-bold text-slate-900">{{ summary.totalCalls }}</p>
+      </article>
+      <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p class="text-xs text-slate-500">Success</p>
+        <p class="text-xl font-bold text-emerald-700">{{ summary.successCalls }}</p>
+      </article>
+      <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p class="text-xs text-slate-500">Failed</p>
+        <p class="text-xl font-bold text-rose-700">{{ summary.failedCalls }}</p>
+      </article>
+      <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p class="text-xs text-slate-500">Cache Hits</p>
+        <p class="text-xl font-bold text-slate-900">{{ summary.cacheHits }}</p>
+      </article>
+      <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p class="text-xs text-slate-500">Total Tokens</p>
+        <p class="text-xl font-bold text-slate-900">{{ summary.totalTokens }}</p>
+      </article>
+      <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p class="text-xs text-slate-500">Avg Latency</p>
+        <p class="text-xl font-bold text-slate-900">{{ summary.averageLatencyMs | number:'1.0-2' }} ms</p>
+      </article>
+    </section>
+
+    <section>
+      <div class="mb-4 grid grid-cols-1 gap-2 md:grid-cols-6">
+        <input
+          [(ngModel)]="provider"
+          aria-label="Audit provider"
+          class="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+          placeholder="provider"
+          type="text" />
+        <input
+          [(ngModel)]="modelId"
+          aria-label="Audit model"
+          class="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+          placeholder="model"
+          type="text" />
+        <input
+          [(ngModel)]="status"
+          aria-label="Audit status"
+          class="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+          placeholder="status"
+          type="text" />
+        <input
+          [(ngModel)]="clusterId"
+          aria-label="Audit cluster id"
+          class="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+          min="1"
+          placeholder="clusterId"
+          type="number" />
+        <input
+          [(ngModel)]="windowDays"
+          aria-label="Audit window days"
+          class="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+          placeholder="window days"
+          type="number" />
+        <button
+          (click)="applyFilters()"
+          class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
+          type="button">
+          Buscar
+        </button>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border border-slate-200">
+        <table class="min-w-full divide-y divide-slate-200 text-sm">
+          <thead class="bg-slate-50">
+            <tr>
+              <th class="px-3 py-2 text-left">
+                <button (click)="changeSorting('createdAt')" class="font-semibold hover:text-blue-700" type="button">
+                  Date{{ getSortMarker('createdAt') }}
+                </button>
+              </th>
+              <th class="px-3 py-2 text-left">
+                <button (click)="changeSorting('provider')" class="font-semibold hover:text-blue-700" type="button">
+                  Provider{{ getSortMarker('provider') }}
+                </button>
+              </th>
+              <th class="px-3 py-2 text-left">
+                <button (click)="changeSorting('modelId')" class="font-semibold hover:text-blue-700" type="button">
+                  Model{{ getSortMarker('modelId') }}
+                </button>
+              </th>
+              <th class="px-3 py-2 text-left">
+                <button (click)="changeSorting('clusterId')" class="font-semibold hover:text-blue-700" type="button">
+                  Cluster{{ getSortMarker('clusterId') }}
+                </button>
+              </th>
+              <th class="px-3 py-2 text-left">
+                <button (click)="changeSorting('status')" class="font-semibold hover:text-blue-700" type="button">
+                  Status{{ getSortMarker('status') }}
+                </button>
+              </th>
+              <th class="px-3 py-2 text-right">
+                <button (click)="changeSorting('totalTokens')" class="font-semibold hover:text-blue-700" type="button">
+                  Tokens{{ getSortMarker('totalTokens') }}
+                </button>
+              </th>
+              <th class="px-3 py-2 text-right">
+                <button (click)="changeSorting('latencyMs')" class="font-semibold hover:text-blue-700" type="button">
+                  Latency{{ getSortMarker('latencyMs') }}
+                </button>
+              </th>
+              <th class="px-3 py-2 text-left">Links</th>
+              <th class="px-3 py-2 text-right">Detalle</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 bg-white">
+            <ng-container *ngFor="let log of logs">
+              <tr>
+                <td class="px-3 py-2">{{ log.createdAt | date:'short' }}</td>
+                <td class="px-3 py-2">{{ log.provider }}</td>
+                <td class="px-3 py-2">{{ log.modelId }}</td>
+                <td class="px-3 py-2">{{ log.clusterId ?? '-' }}</td>
+                <td class="px-3 py-2">{{ log.status }}</td>
+                <td class="px-3 py-2 text-right">{{ log.totalTokens }}</td>
+                <td class="px-3 py-2 text-right">{{ log.latencyMs }} ms</td>
+                <td class="px-3 py-2">
+                  <div class="flex items-center gap-2 text-xs">
+                    <a
+                      *ngIf="hasCluster(log)"
+                      [queryParams]="clusterDetailQuery(log.clusterId)"
+                      [routerLink]="['/opportunities']"
+                      class="text-blue-700 hover:underline">
+                      Cluster
+                    </a>
+                    <a
+                      [routerLink]="['/products']"
+                      class="text-slate-600 hover:underline">
+                      Productos
+                    </a>
+                  </div>
+                </td>
+                <td class="px-3 py-2 text-right">
+                  <button
+                    (click)="toggleDetails(log.id)"
+                    class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold hover:bg-slate-50"
+                    type="button">
+                    {{ expandedLogId === log.id ? 'Ocultar' : 'Ver detalle' }}
+                  </button>
+                </td>
+              </tr>
+
+              <tr *ngIf="expandedLogId === log.id" class="bg-slate-50/70">
+                <td class="px-3 py-3" colspan="9">
+                  <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                    <article class="rounded-lg border border-slate-200 bg-white p-3">
+                      <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Prompt</p>
+                      <p *ngIf="hasPrompt(log); else noPrompt" class="max-h-56 overflow-auto whitespace-pre-wrap text-xs text-slate-800">{{ log.promptText }}</p>
+                      <ng-template #noPrompt>
+                        <p class="text-xs text-slate-400">Sin prompt registrado.</p>
+                      </ng-template>
+                    </article>
+
+                    <article class="rounded-lg border border-slate-200 bg-white p-3">
+                      <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Respuesta LLM</p>
+                      <p *ngIf="hasResponse(log); else noResponse" class="max-h-56 overflow-auto whitespace-pre-wrap text-xs text-slate-800">{{ log.responseText }}</p>
+                      <ng-template #noResponse>
+                        <p class="text-xs text-slate-400">Sin respuesta registrada.</p>
+                      </ng-template>
+                    </article>
+
+                    <article class="rounded-lg border border-slate-200 bg-white p-3">
+                      <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Error</p>
+                      <p *ngIf="hasError(log); else noError" class="max-h-56 overflow-auto whitespace-pre-wrap text-xs text-rose-700">{{ log.errorMessage }}</p>
+                      <ng-template #noError>
+                        <p class="text-xs text-emerald-700">Sin error.</p>
+                      </ng-template>
+                    </article>
+                  </div>
+                </td>
+              </tr>
+            </ng-container>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-4 flex items-center justify-between">
+        <button
+          (click)="previousPage()"
+          [disabled]="page <= 1 || loading"
+          class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
+          type="button">
+          Prev
+        </button>
+
+        <span class="text-sm text-slate-500">Page {{ page }} / {{ totalPages }}</span>
+
+        <button
+          (click)="nextPage()"
+          [disabled]="page >= totalPages || loading"
+          class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
+          type="button">
+          Next
+        </button>
+      </div>
+
+      <p *ngIf="loading" class="mt-3 text-sm text-slate-500">Loading audit logs...</p>
+    </section>
+  </div>
+</section>

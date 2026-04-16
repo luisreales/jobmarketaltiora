@@ -35,6 +35,22 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=jobmarketaltiora_db;Username=postgres;Password=postgres
       Jobs__Playwright__LoginHeadless: "true"
+      Jobs__Credentials__LinkedIn__Username: ${LINKEDIN_USERNAME}
+      Jobs__Credentials__LinkedIn__Password: ${LINKEDIN_PASSWORD}
+      Jobs__Credentials__Upwork__Username: ${UPWORK_USERNAME}
+      Jobs__Credentials__Upwork__Password: ${UPWORK_PASSWORD}
+      SemanticKernel__Enabled: ${SEMANTIC_KERNEL_ENABLED:-true}
+      SemanticKernel__Provider: ${SEMANTIC_KERNEL_PROVIDER:-OpenAI}
+      SemanticKernel__ModelId: ${SEMANTIC_KERNEL_MODEL_ID:-gpt5}
+      SemanticKernel__Endpoint: ${SEMANTIC_KERNEL_ENDPOINT:-https://flow.ciandt.com/flow-llm-proxy/v1}
+      SemanticKernel__ApiKeys__OpenAI: ${FLOW_API_KEY}
+      SemanticKernel__ApiKey: ${FLOW_API_KEY}
+      Jobs__MarketIntelligence__UseSemanticKernel: ${JOBS_MARKET_USE_SEMANTIC_KERNEL:-true}
+      Jobs__MarketIntelligence__SamplingRatePercent: ${JOBS_MARKET_SAMPLING_RATE_PERCENT:-100}
+      Jobs__MarketIntelligence__MinDescriptionLength: ${JOBS_MARKET_MIN_DESCRIPTION_LENGTH:-1}
+      Jobs__MarketIntelligence__MaxCallsPerDay: ${JOBS_MARKET_MAX_CALLS_PER_DAY:-10000}
+      Jobs__MarketIntelligence__PromptVersion: ${JOBS_MARKET_PROMPT_VERSION:-v1}
+      Jobs__MarketIntelligence__PromptTemplate: ${JOBS_MARKET_PROMPT_TEMPLATE}
       UpworkScraper__BaseUrl: ${UPWORK_SCRAPER_BASE_URL:-http://scraper-api:3000}
       UpworkScraper__TimeoutSeconds: "900"
     extra_hosts:

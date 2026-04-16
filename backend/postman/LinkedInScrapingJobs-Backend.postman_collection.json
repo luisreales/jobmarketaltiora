@@ -1,0 +1,132 @@
+{
+  "info": {
+    "name": "LinkedInScrapingJobs Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection to validate core backend endpoints (jobs, market, auth)."
+  },
+  "item": [
+    {
+      "name": "Jobs - Query (paged)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/jobs/jobs/query?page=1&pageSize=5",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "jobs", "jobs", "query"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "pageSize", "value": "5" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Jobs - Full",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/jobs/jobs/full",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "jobs", "jobs", "full"]
+        }
+      }
+    },
+    {
+      "name": "Jobs - By Id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/jobs/jobs/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "jobs", "jobs", "1"]
+        }
+      }
+    },
+    {
+      "name": "Market - Opportunities",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/market/opportunities?page=1&pageSize=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "market", "opportunities"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "pageSize", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Market - Leads",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/market/leads?page=1&pageSize=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "market", "leads"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "pageSize", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Market - Trends",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/market/trends?windowDays=14",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "market", "trends"],
+          "query": [
+            { "key": "windowDays", "value": "14" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Auth - Status LinkedIn",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/status/linkedin",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "status", "linkedin"]
+        }
+      }
+    },
+    {
+      "name": "Scrape - Upwork",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"dotnet\",\n  \"location\": \"Remote\",\n  \"limit\": 5,\n  \"startPage\": 1,\n  \"endPage\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/jobs/search/scrape/upwork",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "jobs", "search", "scrape", "upwork"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    }
+  ]
+}
