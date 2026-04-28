@@ -24,6 +24,9 @@ export interface LinkedInJobSummary {
   seniority: string | null;
   contractType: string | null;
   url: string;
+  // Human-in-the-loop funnel state
+  hasOpportunity: boolean;
+  opportunityId?: number | null;
 }
 
 export interface LinkedInJobDetail {

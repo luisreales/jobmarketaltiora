@@ -169,6 +169,102 @@ public class AiObservabilityController(
         return Ok(new AiUsageSummaryDto(fromDate, toDate, totalCalls, successCalls, failedCalls, cacheHits, totalTokens, Math.Round(averageLatency, 2)));
     }
 
+    [HttpDelete("logs/cache")]
+    public async Task<ActionResult<object>> ClearCachedLogs(CancellationToken cancellationToken)
+    {
+        var deleted = await dbContext.AiPromptLogs
+            .Where(x => x.CacheHit)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        return Ok(new { deletedCount = deleted, message = $"Deleted {deleted} cached log records." });
+    }
+
+    [HttpDelete("logs")]
+    public async Task<ActionResult<object>> DeleteAllLogs(CancellationToken cancellationToken)
+    {
+        var deleted = await dbContext.AiPromptLogs
+            .ExecuteDeleteAsync(cancellationToken);
+
+        return Ok(new { deletedCount = deleted, message = $"Deleted {deleted} log records." });
+    }
+
+    [HttpGet("prompts")]
+    public async Task<ActionResult<List<AiPromptTemplateDto>>> GetAllPromptTemplates(CancellationToken cancellationToken)
+    {
+        var templates = await dbContext.AiPromptTemplates
+            .AsNoTracking()
+            .OrderBy(x => x.Key)
+            .Select(x => new AiPromptTemplateDto(
+                x.Key,
+                x.Template,
+                x.Version,
+                x.IsActive,
+                "database",
+                x.UpdatedAt,
+                x.UpdatedBy))
+            .ToListAsync(cancellationToken);
+
+        return Ok(templates);
+    }
+
+    [HttpPost("prompts")]
+    public async Task<ActionResult<AiPromptTemplateDto>> CreatePromptTemplate(
+        [FromBody] CreateAiPromptTemplateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var normalizedKey = NormalizeKey(request.Key);
+        if (string.IsNullOrWhiteSpace(normalizedKey))
+            return BadRequest(new { message = "Prompt key is required." });
+
+        if (string.IsNullOrWhiteSpace(request.Template))
+            return BadRequest(new { message = "Template content is required." });
+
+        var exists = await dbContext.AiPromptTemplates
+            .AnyAsync(x => x.Key == normalizedKey, cancellationToken);
+
+        if (exists)
+            return Conflict(new { message = $"A prompt with key '{normalizedKey}' already exists." });
+
+        var entity = new Domain.Entities.AiPromptTemplate
+        {
+            Key = normalizedKey,
+            Template = request.Template.Trim(),
+            Version = string.IsNullOrWhiteSpace(request.Version) ? "v1" : request.Version.Trim(),
+            IsActive = request.IsActive,
+            UpdatedBy = string.IsNullOrWhiteSpace(request.UpdatedBy) ? "ui-admin" : request.UpdatedBy.Trim(),
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        dbContext.AiPromptTemplates.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return CreatedAtAction(
+            actionName: nameof(GetPromptTemplate),
+            routeValues: new { key = entity.Key },
+            value: new AiPromptTemplateDto(
+                entity.Key, entity.Template, entity.Version,
+                entity.IsActive, "database", entity.UpdatedAt, entity.UpdatedBy));
+    }
+
+    [HttpDelete("prompts/{key}")]
+    public async Task<IActionResult> DeletePromptTemplate([FromRoute] string key, CancellationToken cancellationToken)
+    {
+        var normalizedKey = NormalizeKey(key);
+        if (string.IsNullOrWhiteSpace(normalizedKey))
+            return BadRequest(new { message = "Prompt key is required." });
+
+        var entity = await dbContext.AiPromptTemplates
+            .FirstOrDefaultAsync(x => x.Key == normalizedKey, cancellationToken);
+
+        if (entity is null)
+            return NotFound(new { message = $"Prompt '{normalizedKey}' not found." });
+
+        dbContext.AiPromptTemplates.Remove(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return NoContent();
+    }
+
     [HttpGet("prompts/{key}")]
     public async Task<ActionResult<AiPromptTemplateDto>> GetPromptTemplate([FromRoute] string key, CancellationToken cancellationToken)
     {

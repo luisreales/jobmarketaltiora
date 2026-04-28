@@ -1,121 +1,279 @@
-<section class="search-shell">
-	<h2>Auth + Scraping Workspace</h2>
+<section class="min-h-[100dvh] bg-slate-100 p-4 md:p-8">
+  <div class="mx-auto w-full max-w-4xl space-y-6">
 
-	<section class="card">
-		<h3>1. Conexiones</h3>
-		<div class="form-grid">
-			<button type="button" (click)="connectLinkedIn()" [disabled]="isLinkedInConnected || loading">Conectar LinkedIn</button>
-			<button type="button" (click)="disconnect()" [disabled]="!isLinkedInConnected || loading">Desconectar LinkedIn</button>
-			<button type="button" (click)="connectUpwork()" [disabled]="loading">Login Upwork</button>
-			<button type="button" (click)="refreshStatus()">Actualizar estados</button>
-		</div>
-		<div class="status-grid">
-			<p>
-				<strong>LinkedIn:</strong>
-				<span [class.ok]="isLinkedInConnected">{{ isLinkedInConnected ? 'Conectado' : 'No conectado' }}</span>
-			</p>
-			<p>
-				<strong>Upwork:</strong>
-				<span [class.ok]="isUpworkConnected">{{ isUpworkConnected ? 'Conectado' : 'No conectado' }}</span>
-			</p>
-		</div>
-	</section>
+    <!-- Header -->
+    <header class="rounded-3xl bg-white p-6 shadow-xl">
+      <h1 class="text-2xl font-extrabold text-slate-900">Scraping</h1>
+      <p class="mt-1 text-sm text-slate-500">
+        Manage provider connections and trigger job scraping runs.
+      </p>
+    </header>
 
-	<section class="card">
-		<h3>Estado de sesion</h3>
-		<p *ngIf="upworkAuthStatus && !authError; else noStatus">
-			Estado Upwork: <strong>{{ upworkAuthStatus.isAuthenticated ? 'Conectado' : 'Desconectado' }}</strong><br />
-			Ultimo login: {{ upworkAuthStatus.lastLoginAt || 'N/A' }}<br />
-			Ultimo uso: {{ upworkAuthStatus.lastUsedAt || 'N/A' }}<br />
-			Expira: {{ upworkAuthStatus.expiresAt || 'N/A' }}
-		</p>
-		<ng-template #noStatus>
-			<p>No se pudo obtener estado de autenticacion.</p>
-		</ng-template>
-	</section>
+    <!-- Connections -->
+    <div class="rounded-2xl bg-white p-6 shadow-sm">
+      <h2 class="mb-4 text-sm font-bold uppercase tracking-wide text-slate-500">Provider Connections</h2>
 
-	<section class="card">
-		<h3>2. Ejecutar scraping desde backend</h3>
-		<form [formGroup]="scrapeForm" (ngSubmit)="runScraping()" class="form-grid">
-			<label>
-				Modo
-				<select formControlName="mode">
-					<option value="upwork-scrape">Upwork Scrape (usar sesion existente)</option>
-					<option value="upwork-login-and-scrape">Upwork Login + Scrape</option>
-					<option value="linkedin-scrape">LinkedIn Scrape</option>
-				</select>
-			</label>
-			<label>
-				Keyword
-				<input type="text" formControlName="query" />
-			</label>
-			<label>
-				Ubicacion
-				<input type="text" formControlName="location" />
-			</label>
-			<label>
-				Limite
-				<input type="number" formControlName="limit" min="1" max="100" />
-			</label>
-			<label>
-				Pagina inicial
-				<input type="number" formControlName="startPage" min="1" max="50" />
-			</label>
-			<label>
-				Pagina final
-				<input type="number" formControlName="endPage" min="1" max="50" />
-			</label>
-			<button type="submit">Ejecutar scraping</button>
-		</form>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
-		<p class="status" *ngIf="loading">Procesando...</p>
-		<p *ngIf="scrapeResult">
-			Encontradas: <strong>{{ scrapeResult.totalFound }}</strong> |
-			Guardadas nuevas: <strong>{{ scrapeResult.savedCount }}</strong>
-		</p>
-	</section>
+        <!-- LinkedIn -->
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-xs font-bold text-white">
+                Li
+              </div>
+              <div>
+                <p class="text-sm font-bold text-slate-900">LinkedIn</p>
+                <p class="text-xs" [class]="isLinkedInConnected ? 'text-green-600' : 'text-slate-400'">
+                  {{ isLinkedInConnected ? 'Connected' : 'Not connected' }}
+                </p>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button
+                (click)="connectLinkedIn()"
+                [disabled]="isLinkedInConnected || loading"
+                class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-40"
+                type="button">
+                Connect
+              </button>
+              <button
+                (click)="disconnect()"
+                [disabled]="!isLinkedInConnected || loading"
+                class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-40"
+                type="button">
+                Disconnect
+              </button>
+            </div>
+          </div>
+        </div>
 
-	<section class="card" *ngIf="upworkTouchedJobs.length">
-		<h3>3. Resultados tocados (Upwork)</h3>
-		<div class="table-wrap">
-			<table>
-				<thead>
-					<tr>
-						<th>ID</th>
-						<th>Titulo</th>
-						<th>Empresa</th>
-						<th>Descripcion (preview)</th>
-						<th>Capturado</th>
-						<th>Acciones</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr *ngFor="let job of upworkTouchedJobs">
-						<td>{{ job.id }}</td>
-						<td>{{ job.title }}</td>
-						<td>{{ job.company }}</td>
-						<td>{{ job.descriptionPreview || 'Sin preview' }}</td>
-						<td>{{ job.capturedAt | date: 'short' }}</td>
-						<td class="actions-cell">
-							<button type="button" (click)="openUpworkDetail(job.id)">Ver detalle</button>
-							<a *ngIf="job.url" [href]="job.url" target="_blank" rel="noopener noreferrer">Abrir Upwork</a>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-		</div>
-	</section>
+        <!-- Upwork -->
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-xs font-bold text-white">
+                Uw
+              </div>
+              <div>
+                <p class="text-sm font-bold text-slate-900">Upwork</p>
+                <p class="text-xs" [class]="isUpworkConnected ? 'text-green-600' : 'text-slate-400'">
+                  {{ isUpworkConnected ? 'Connected' : 'Not connected' }}
+                </p>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button
+                (click)="connectUpwork()"
+                [disabled]="loading"
+                class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-40"
+                type="button">
+                Login
+              </button>
+              <button
+                (click)="refreshStatus()"
+                class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+                type="button">
+                Refresh
+              </button>
+            </div>
+          </div>
 
-	<section class="card" *ngIf="selectedUpworkDetail || loadingDetail">
-		<h3>4. Detalle completo</h3>
-		<p *ngIf="loadingDetail">Cargando detalle completo...</p>
-		<article *ngIf="selectedUpworkDetail" class="detail-panel">
-			<h4>{{ selectedUpworkDetail.title }}</h4>
-			<p><strong>Empresa:</strong> {{ selectedUpworkDetail.company }}</p>
-			<p><strong>Ubicacion:</strong> {{ selectedUpworkDetail.location }}</p>
-			<p><strong>Search term:</strong> {{ selectedUpworkDetail.searchTerm }}</p>
-			<p><strong>Descripcion:</strong></p>
-			<p class="description-full">{{ selectedUpworkDetail.description }}</p>
-		</article>
-	</section>
+          @if (upworkAuthStatus && !authError) {
+            <div class="mt-3 grid grid-cols-2 gap-1 border-t border-slate-200 pt-3 text-[11px] text-slate-500">
+              <span>Last login: {{ upworkAuthStatus.lastLoginAt || '—' }}</span>
+              <span>Last used: {{ upworkAuthStatus.lastUsedAt || '—' }}</span>
+              <span>Expires: {{ upworkAuthStatus.expiresAt || '—' }}</span>
+            </div>
+          }
+        </div>
+
+      </div>
+
+      @if (authError) {
+        <p class="mt-3 rounded-lg bg-red-50 px-4 py-2 text-xs text-red-700">
+          Could not fetch provider auth status.
+        </p>
+      }
+    </div>
+
+    <!-- Scraping Form -->
+    <div class="rounded-2xl bg-white p-6 shadow-sm">
+      <h2 class="mb-4 text-sm font-bold uppercase tracking-wide text-slate-500">Run Scraping</h2>
+
+      <form [formGroup]="scrapeForm" (ngSubmit)="runScraping()" class="space-y-4">
+        <!-- Mode -->
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-slate-600">Mode</label>
+          <select
+            formControlName="mode"
+            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <option value="upwork-scrape">Upwork — use existing session</option>
+            <option value="upwork-login-and-scrape">Upwork — login + scrape</option>
+            <option value="linkedin-scrape">LinkedIn scrape</option>
+          </select>
+        </div>
+
+        <!-- Keyword + Location -->
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label class="mb-1 block text-xs font-semibold text-slate-600">Keyword</label>
+            <input
+              formControlName="query"
+              class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder=".NET, React, Python..."
+              type="text" />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-semibold text-slate-600">Location</label>
+            <input
+              formControlName="location"
+              class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="Remote, Spain..."
+              type="text" />
+          </div>
+        </div>
+
+        <!-- Limit + Pages -->
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="mb-1 block text-xs font-semibold text-slate-600">Limit</label>
+            <input
+              formControlName="limit"
+              class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              min="1" max="100"
+              type="number" />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-semibold text-slate-600">Start page</label>
+            <input
+              formControlName="startPage"
+              class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              min="1" max="50"
+              type="number" />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-semibold text-slate-600">End page</label>
+            <input
+              formControlName="endPage"
+              class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              min="1" max="50"
+              type="number" />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          [disabled]="scrapeForm.invalid || loading"
+          class="w-full rounded-xl bg-blue-600 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50">
+          @if (loading) {
+            <span class="inline-flex items-center justify-center gap-2">
+              <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+              Running scrape...
+            </span>
+          } @else {
+            Run Scraping
+          }
+        </button>
+      </form>
+    </div>
+
+    <!-- Scrape Result summary -->
+    @if (scrapeResult) {
+      <div class="rounded-2xl border border-green-200 bg-green-50 px-5 py-4 shadow-sm">
+        <p class="text-sm font-semibold text-green-800">Scraping completed</p>
+        <p class="mt-1 text-xs text-green-700">
+          Found: <strong>{{ scrapeResult.totalFound }}</strong> &nbsp;·&nbsp;
+          Saved: <strong>{{ scrapeResult.savedCount }}</strong> new jobs
+        </p>
+      </div>
+    }
+
+    <!-- Upwork touched jobs -->
+    @if (upworkTouchedJobs.length > 0) {
+      <div class="rounded-2xl bg-white shadow-sm">
+        <div class="border-b border-slate-100 px-5 py-4">
+          <h2 class="text-sm font-bold text-slate-900">
+            Upwork Results — {{ upworkTouchedJobs.length }} jobs captured
+          </h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-sm">
+            <thead class="bg-slate-50">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Title</th>
+                <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Company</th>
+                <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Preview</th>
+                <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Captured</th>
+                <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-500">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+              @for (job of upworkTouchedJobs; track job.id) {
+                <tr class="hover:bg-slate-50/60">
+                  <td class="px-4 py-3 font-medium text-slate-800">{{ job.title }}</td>
+                  <td class="px-4 py-3 text-slate-600">{{ job.company }}</td>
+                  <td class="max-w-xs px-4 py-3 text-xs text-slate-500">
+                    <p class="line-clamp-2">{{ job.descriptionPreview || '—' }}</p>
+                  </td>
+                  <td class="px-4 py-3 text-xs text-slate-500">{{ job.capturedAt | date:'d MMM y' }}</td>
+                  <td class="px-4 py-3 text-right">
+                    <div class="inline-flex gap-2">
+                      <button
+                        (click)="openUpworkDetail(job.id)"
+                        class="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                        type="button">
+                        Detail
+                      </button>
+                      @if (job.url) {
+                        <a
+                          [href]="job.url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="rounded-lg border border-emerald-300 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50">
+                          Open ↗
+                        </a>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    <!-- Upwork detail panel -->
+    @if (loadingDetail) {
+      <div class="rounded-2xl bg-white p-8 text-center text-sm text-slate-400 shadow-sm">
+        Loading job detail...
+      </div>
+    }
+
+    @if (selectedUpworkDetail && !loadingDetail) {
+      <div class="rounded-2xl bg-white p-6 shadow-sm">
+        <h2 class="mb-4 text-base font-bold text-slate-900">{{ selectedUpworkDetail.title }}</h2>
+        <div class="mb-4 grid grid-cols-2 gap-3 text-xs sm:grid-cols-3">
+          <div class="rounded-xl bg-slate-50 p-3">
+            <p class="text-slate-400">Company</p>
+            <p class="mt-0.5 font-semibold text-slate-800">{{ selectedUpworkDetail.company }}</p>
+          </div>
+          <div class="rounded-xl bg-slate-50 p-3">
+            <p class="text-slate-400">Location</p>
+            <p class="mt-0.5 font-semibold text-slate-800">{{ selectedUpworkDetail.location || '—' }}</p>
+          </div>
+          <div class="rounded-xl bg-slate-50 p-3">
+            <p class="text-slate-400">Search term</p>
+            <p class="mt-0.5 font-semibold text-slate-800">{{ selectedUpworkDetail.searchTerm }}</p>
+          </div>
+        </div>
+        <div class="rounded-xl bg-slate-50 p-4">
+          <p class="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Description</p>
+          <p class="whitespace-pre-line text-sm leading-relaxed text-slate-700">{{ selectedUpworkDetail.description }}</p>
+        </div>
+      </div>
+    }
+
+  </div>
 </section>

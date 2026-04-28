@@ -19,7 +19,7 @@ public class JobOrchestrator(
     private readonly Dictionary<string, IJobProvider> providersMap = providers
         .ToDictionary(p => p.Name.Trim().ToLowerInvariant(), StringComparer.OrdinalIgnoreCase);
 
-    public async Task LoginAsync(string provider, string username, string password, CancellationToken cancellationToken = default)
+    public async Task LoginAsync(string provider, string username, string password, bool showBrowser = false, CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeProvider(provider);
         if (!ProviderRequiresAuthentication(normalized))
@@ -50,7 +50,7 @@ public class JobOrchestrator(
 
         if (normalized == "upwork")
         {
-            var loginResult = await upworkScraperClient.LoginAsync(username.Trim(), password, cancellationToken);
+            var loginResult = await upworkScraperClient.LoginAsync(username.Trim(), password, showBrowser, cancellationToken);
             if (!loginResult.IsAuthenticated)
             {
                 throw new InvalidOperationException("Upwork login was not authenticated by scraper API.");
@@ -96,6 +96,7 @@ public class JobOrchestrator(
         int? totalPaging = null,
         int? startPage = null,
         int? endPage = null,
+        bool showBrowser = false,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query))
@@ -115,7 +116,8 @@ public class JobOrchestrator(
             Limit: limit,
             TotalPaging: totalPaging,
             StartPage: startPage,
-            EndPage: endPage);
+            EndPage: endPage,
+            ShowBrowser: showBrowser);
 
         var maxParallel = Math.Clamp(configuration.GetValue<int?>("Jobs:Providers:MaxParallel") ?? 2, 1, 8);
         using var throttler = new SemaphoreSlim(maxParallel, maxParallel);
@@ -183,7 +185,7 @@ public class JobOrchestrator(
 
             var timeoutSeconds = provider.Name.Equals("upwork", StringComparison.OrdinalIgnoreCase)
                 ? Math.Clamp(configuration.GetValue<int?>("Jobs:Upwork:ProviderTimeoutSeconds") ?? 900, 30, 1800)
-                : Math.Clamp(configuration.GetValue<int?>("Jobs:Providers:TimeoutSeconds") ?? 90, 10, 300);
+                : Math.Clamp(configuration.GetValue<int?>("Jobs:Providers:TimeoutSeconds") ?? 900, 10, 3600);
             var timeoutPolicy = Policy.TimeoutAsync(timeoutSeconds, TimeoutStrategy.Optimistic);
             IAsyncPolicy policy;
             if (provider.Name.Equals("upwork", StringComparison.OrdinalIgnoreCase))

@@ -5,7 +5,7 @@ namespace backend.Application.Interfaces;
 
 public interface IJobOrchestrator
 {
-    Task LoginAsync(string provider, string username, string password, CancellationToken cancellationToken = default);
+    Task LoginAsync(string provider, string username, string password, bool showBrowser = false, CancellationToken cancellationToken = default);
     Task LogoutAsync(string provider, CancellationToken cancellationToken = default);
     Task<(bool isAuthenticated, DateTime? lastLoginAt, DateTime? lastUsedAt, DateTime? expiresAt)> GetAuthStatusAsync(
         string provider,
@@ -18,6 +18,7 @@ public interface IJobOrchestrator
         int? totalPaging = null,
         int? startPage = null,
         int? endPage = null,
+        bool showBrowser = false,
         CancellationToken cancellationToken = default);
     Task<List<JobOffer>> GetJobsAsync(CancellationToken cancellationToken = default);
     Task<(List<JobOffer> Items, int TotalCount)> QueryJobsAsync(JobsQueryRequest request, CancellationToken cancellationToken = default);

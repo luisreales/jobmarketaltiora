@@ -113,8 +113,30 @@ public record ProductDto(
     string Industry,
     // LLM
     string? SynthesisDetailJson,
+    string? TechnicalMvpJson,
     string LlmStatus,
-    DateTime GeneratedAt);
+    DateTime GeneratedAt,
+    // Manual funnel
+    int? OpportunityId,
+    string? SourceIdeaId,
+    string? ImageUrl,
+    // Product lifecycle
+    string Status);
+
+public record UpdateProductRequest(
+    string ProductName,
+    string ProductDescription,
+    string WhyNow,
+    string Offer,
+    string ActionToday,
+    string TechFocus,
+    int EstimatedBuildDays,
+    decimal MinDealSizeUsd,
+    decimal MaxDealSizeUsd,
+    string OpportunityType,
+    string Industry,
+    string? ImageUrl,
+    string Status);
 
 public record ProductGenerateResultDto(
     int ProductsGenerated,

@@ -14,8 +14,12 @@ export class App {
   readonly navigationItems = [
     { path: '/jobs', label: 'Jobs' },
     { path: '/opportunities', label: 'Opportunities' },
+    { path: '/opportunity-ideas', label: '💡 Idea Vault' },
     { path: '/products', label: 'Products' },
+    { path: '/commercial-strategies', label: '📊 Commercial Strategy' },
+    { path: '/mvp-requirements', label: '🛠 MVP Requirements' },
     { path: '/ai-audit', label: 'AI Audit' },
+    { path: '/prompt-ai', label: 'Prompt AI' },
     { path: '/scraping', label: 'Scraping' }
   ];
 

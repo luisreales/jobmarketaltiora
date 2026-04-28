@@ -25,22 +25,25 @@ public sealed class BrowserPool(IConfiguration configuration, ILogger<BrowserPoo
 
             var headless = configuration.GetValue<bool?>("Jobs:Playwright:Headless") ?? true;
             var slowMoMs = Math.Clamp(configuration.GetValue<int?>("Jobs:Playwright:SlowMoMs") ?? 0, 0, 5000);
-            var browserChannel = configuration.GetValue<string>("Jobs:Playwright:BrowserChannel");
             var chromiumExecutablePath = configuration.GetValue<string>("Jobs:Playwright:ChromiumExecutablePath");
 
             playwright = await Playwright.CreateAsync();
             browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
             {
-                Channel = string.IsNullOrWhiteSpace(browserChannel) ? null : browserChannel.Trim(),
                 ExecutablePath = string.IsNullOrWhiteSpace(chromiumExecutablePath) ? null : chromiumExecutablePath.Trim(),
                 Headless = headless,
                 SlowMo = slowMoMs,
-                Args = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+                Args =
+                [
+                    "--headless=new",
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-blink-features=AutomationControlled"
+                ]
             });
 
             logger.LogInformation(
-                "Shared Playwright browser initialized. Channel={Channel}, ExecutablePath={ExecutablePath}, Headless={Headless}.",
-                string.IsNullOrWhiteSpace(browserChannel) ? "default-chromium" : browserChannel,
+                "Shared Playwright browser initialized. ExecutablePath={ExecutablePath}, Headless={Headless}.",
                 string.IsNullOrWhiteSpace(chromiumExecutablePath) ? "bundled" : chromiumExecutablePath,
                 headless);
             return browser;

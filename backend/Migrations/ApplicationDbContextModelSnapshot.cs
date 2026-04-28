@@ -150,6 +150,62 @@ namespace backend.Migrations
                     b.ToTable("AiPromptTemplates");
                 });
 
+            modelBuilder.Entity("backend.Domain.Entities.CommercialStrategy", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CompanyContext")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FinancialImpact")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MvpDefinition")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OutreachMessage")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PricingStrategy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("RealBusinessProblem")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetBuyer")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GeneratedAt");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("CommercialStrategies");
+                });
+
             modelBuilder.Entity("backend.Domain.Entities.JobInsight", b =>
                 {
                     b.Property<int>("Id")
@@ -533,6 +589,152 @@ namespace backend.Migrations
                     b.ToTable("MarketClusters");
                 });
 
+            modelBuilder.Entity("backend.Domain.Entities.MvpRequirement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ArchitectureStrategy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CompanyContext")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CoreFeaturesJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("[]");
+
+                    b.Property<string>("EstimatedTimelines")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("RequiredTechStackJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("[]");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GeneratedAt");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("MvpRequirements");
+                });
+
+            modelBuilder.Entity("backend.Domain.Entities.Opportunity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Company")
+                        .IsRequired()
+                        .HasMaxLength(220)
+                        .HasColumnType("character varying(220)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("JobDescription")
+                        .HasColumnType("text");
+
+                    b.Property<int>("JobId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("JobTitle")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("LlmStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("pending");
+
+                    b.Property<string>("ProductIdeasJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("active");
+
+                    b.Property<DateTime?>("SynthesizedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TechStack")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("JobId");
+
+                    b.HasIndex("LlmStatus");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("Opportunities");
+                });
+
+            modelBuilder.Entity("backend.Domain.Entities.OpportunityIdea", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("BusinessJustification")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<int?>("OpportunityId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("OpportunityId");
+
+                    b.ToTable("OpportunityIdeas");
+                });
+
             modelBuilder.Entity("backend.Domain.Entities.ProductSuggestion", b =>
                 {
                     b.Property<int>("Id")
@@ -567,6 +769,10 @@ namespace backend.Migrations
                     b.Property<DateTime>("GeneratedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)");
+
                     b.Property<string>("Industry")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -594,6 +800,9 @@ namespace backend.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<int?>("OpportunityId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("OpportunityType")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -611,6 +820,16 @@ namespace backend.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("SourceIdeaId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("open");
+
                     b.Property<string>("SynthesisDetailJson")
                         .HasColumnType("text");
 
@@ -618,6 +837,9 @@ namespace backend.Migrations
                         .IsRequired()
                         .HasMaxLength(400)
                         .HasColumnType("character varying(400)");
+
+                    b.Property<string>("TechnicalMvpJson")
+                        .HasColumnType("text");
 
                     b.Property<double>("TopBlueOceanScore")
                         .HasColumnType("double precision");
@@ -634,12 +856,16 @@ namespace backend.Migrations
 
                     b.HasIndex("GeneratedAt");
 
+                    b.HasIndex("OpportunityId");
+
                     b.HasIndex("OpportunityType");
 
                     b.HasIndex("PriorityScore");
 
                     b.HasIndex("ProductName")
                         .IsUnique();
+
+                    b.HasIndex("Status");
 
                     b.ToTable("ProductSuggestions");
                 });
@@ -699,6 +925,16 @@ namespace backend.Migrations
                     b.Navigation("Job");
                 });
 
+            modelBuilder.Entity("backend.Domain.Entities.CommercialStrategy", b =>
+                {
+                    b.HasOne("backend.Domain.Entities.ProductSuggestion", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Product");
+                });
+
             modelBuilder.Entity("backend.Domain.Entities.JobInsight", b =>
                 {
                     b.HasOne("backend.Domain.Entities.MarketCluster", null)
@@ -715,9 +951,57 @@ namespace backend.Migrations
                     b.Navigation("Job");
                 });
 
+            modelBuilder.Entity("backend.Domain.Entities.MvpRequirement", b =>
+                {
+                    b.HasOne("backend.Domain.Entities.ProductSuggestion", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("backend.Domain.Entities.Opportunity", b =>
+                {
+                    b.HasOne("backend.Domain.Entities.JobOffer", "Job")
+                        .WithMany()
+                        .HasForeignKey("JobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Job");
+                });
+
+            modelBuilder.Entity("backend.Domain.Entities.OpportunityIdea", b =>
+                {
+                    b.HasOne("backend.Domain.Entities.Opportunity", "Opportunity")
+                        .WithMany("Ideas")
+                        .HasForeignKey("OpportunityId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Opportunity");
+                });
+
+            modelBuilder.Entity("backend.Domain.Entities.ProductSuggestion", b =>
+                {
+                    b.HasOne("backend.Domain.Entities.Opportunity", "Opportunity")
+                        .WithMany("Products")
+                        .HasForeignKey("OpportunityId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Opportunity");
+                });
+
             modelBuilder.Entity("backend.Domain.Entities.MarketCluster", b =>
                 {
                     b.Navigation("Insights");
+                });
+
+            modelBuilder.Entity("backend.Domain.Entities.Opportunity", b =>
+                {
+                    b.Navigation("Ideas");
+
+                    b.Navigation("Products");
                 });
 #pragma warning restore 612, 618
         }

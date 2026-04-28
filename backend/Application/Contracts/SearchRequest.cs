@@ -6,4 +6,5 @@ public sealed record SearchRequest(
     int Limit,
     int? TotalPaging,
     int? StartPage,
-    int? EndPage);
+    int? EndPage,
+    bool ShowBrowser = false);

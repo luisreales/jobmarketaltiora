@@ -2,38 +2,50 @@
   <div class="mx-auto max-w-4xl space-y-6">
 
     @if (loading) {
-      <div class="py-20 text-center text-sm text-slate-400">Cargando producto...</div>
+      <div class="py-20 text-center text-sm text-slate-400">Loading product...</div>
     }
 
     @if (notFound && !loading) {
       <div class="py-20 text-center">
-      <p class="text-sm text-slate-500">Producto no encontrado.</p>
-      <a routerLink="/products" class="mt-3 inline-block text-sm font-semibold text-blue-600 hover:underline">
-        ← Volver al catálogo
-      </a>
+        <p class="text-sm text-slate-500">Product not found.</p>
+        <a routerLink="/products" class="mt-3 inline-block text-sm font-semibold text-blue-600 hover:underline">
+          ← Back to Products
+        </a>
       </div>
     }
 
     @if (product && !loading) {
 
-      <a
-        routerLink="/products"
-        class="inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-800">
-        ← Catálogo de productos
-      </a>
+      <!-- Breadcrumb -->
+      <div class="flex items-center justify-between">
+        <a routerLink="/products"
+           class="inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-800">
+          ← Products
+        </a>
+        @if (isClosed) {
+          <span class="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-600">
+            🔒 Closed / Finalized
+          </span>
+        }
+      </div>
 
+      <!-- ── Header ─────────────────────────────────────────────────────────── -->
       <header class="rounded-3xl bg-white p-6 shadow-xl md:p-8">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div class="flex-1">
             <div class="flex flex-wrap items-center gap-2">
-              <span
-                [class]="opportunityTypeClass(product.opportunityType)"
-                class="rounded-full px-2.5 py-1 text-xs font-semibold">
+              <span [class]="opportunityTypeClass(product.opportunityType)"
+                    class="rounded-full px-2.5 py-1 text-xs font-semibold">
                 {{ product.opportunityType }}
               </span>
               @if (product.industry && product.industry !== 'Unknown') {
                 <span class="rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
                   {{ product.industry }}
+                </span>
+              }
+              @if (isClosed) {
+                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                  🔒 Closed
                 </span>
               }
             </div>
@@ -43,155 +55,285 @@
 
             <div class="mt-3 flex flex-wrap gap-1.5">
               @for (t of techTokens(product.techFocus); track t) {
-                <span class="rounded bg-slate-800 px-2 py-0.5 font-mono text-xs text-slate-200">
-                  {{ t }}
-                </span>
+                <span class="rounded bg-slate-800 px-2 py-0.5 font-mono text-xs text-slate-200">{{ t }}</span>
               }
             </div>
           </div>
 
           <div class="flex-shrink-0 rounded-2xl bg-blue-600 px-6 py-4 text-center text-white">
-            <p class="text-xs font-semibold uppercase tracking-wide text-blue-200">Deal estimado</p>
+            <p class="text-xs font-semibold uppercase tracking-wide text-blue-200">Estimated Deal</p>
             <p class="mt-1 text-xl font-extrabold">{{ dealRange() }}</p>
-            <p class="mt-0.5 text-xs text-blue-200">{{ product.estimatedBuildDays }} días build</p>
+            @if (product.estimatedBuildDays > 0) {
+              <p class="mt-0.5 text-xs text-blue-200">{{ product.estimatedBuildDays }}d build</p>
+            }
           </div>
         </div>
 
+        <div class="mt-5">
+          <button
+            (click)="openImagePreview()"
+            class="group block w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 transition hover:shadow-md"
+            type="button">
+            <img
+              [src]="displayImageUrl"
+              (error)="onProductImageError()"
+              [alt]="product.productName"
+              class="h-72 w-full object-cover transition group-hover:scale-[1.01] md:h-96" />
+          </button>
+          <p class="mt-2 text-center text-xs text-slate-400">Click the image to view it larger.</p>
+        </div>
+
+        <!-- KPIs -->
         <dl class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
-            <dt class="text-xs text-slate-500">Empresas</dt>
+            <dt class="text-xs text-slate-500">Companies</dt>
             <dd class="text-xl font-bold text-slate-900">{{ product.totalJobCount }}</dd>
           </div>
           <div class="rounded-xl border border-green-100 bg-green-50 p-3 text-center">
-            <dt class="text-xs text-green-700">Directo</dt>
+            <dt class="text-xs text-green-700">Direct</dt>
             <dd class="text-xl font-bold text-green-800">{{ (product.avgDirectClientRatio * 100).toFixed(0) }}%</dd>
           </div>
           <div class="rounded-xl border border-amber-100 bg-amber-50 p-3 text-center">
-            <dt class="text-xs text-amber-700">Urgencia</dt>
+            <dt class="text-xs text-amber-700">Urgency</dt>
             <dd class="text-xl font-bold text-amber-800">{{ product.avgUrgencyScore.toFixed(1) }}</dd>
           </div>
           <div class="rounded-xl border border-blue-100 bg-blue-50 p-3 text-center">
-            <dt class="text-xs text-blue-700">BlueOcean</dt>
+            <dt class="text-xs text-blue-700">Blue Ocean</dt>
             <dd class="text-xl font-bold text-blue-800">{{ product.topBlueOceanScore.toFixed(1) }}</dd>
           </div>
         </dl>
 
-        <div class="mt-4 rounded-xl bg-slate-50 px-4 py-3">
-          <p class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Por qué ahora</p>
-          <p class="mt-1 text-sm font-medium text-slate-700">{{ product.whyNow }}</p>
-        </div>
+        @if (product.whyNow) {
+          <div class="mt-4 rounded-xl bg-slate-50 px-4 py-3">
+            <p class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Why Now</p>
+            <p class="mt-1 text-sm font-medium text-slate-700">{{ product.whyNow }}</p>
+          </div>
+        }
 
-        <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div class="rounded-xl bg-blue-50 px-4 py-3">
-            <p class="text-[10px] font-bold uppercase tracking-wide text-blue-500">La oferta</p>
-            <p class="mt-1 text-sm font-bold text-blue-800">{{ product.offer }}</p>
+        @if (product.offer && product.offer !== 'Custom quote — define with client') {
+          <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div class="rounded-xl bg-blue-50 px-4 py-3">
+              <p class="text-[10px] font-bold uppercase tracking-wide text-blue-500">The Offer</p>
+              <p class="mt-1 text-sm font-bold text-blue-800">{{ product.offer }}</p>
+            </div>
+            @if (product.actionToday) {
+              <div class="rounded-xl bg-green-50 px-4 py-3">
+                <p class="text-[10px] font-bold uppercase tracking-wide text-green-500">Action Today</p>
+                <p class="mt-1 text-sm font-semibold text-green-800">{{ product.actionToday }}</p>
+              </div>
+            }
           </div>
-          <div class="rounded-xl bg-green-50 px-4 py-3">
-            <p class="text-[10px] font-bold uppercase tracking-wide text-green-500">Acción hoy</p>
-            <p class="mt-1 text-sm font-semibold text-green-800">{{ product.actionToday }}</p>
-          </div>
-        </div>
+        }
       </header>
 
-      @if (uiMessage) {
-        <div
-          class="rounded-xl border px-4 py-3 text-sm"
-          [class.border-emerald-200]="uiMessageType === 'success'"
-          [class.bg-emerald-50]="uiMessageType === 'success'"
-          [class.text-emerald-800]="uiMessageType === 'success'"
-          [class.border-rose-200]="uiMessageType === 'error'"
-          [class.bg-rose-50]="uiMessageType === 'error'"
-          [class.text-rose-700]="uiMessageType === 'error'">
-          <div class="flex items-center justify-between gap-2">
-            <span>{{ uiMessage }}</span>
-            <button (click)="clearUiMessage()" class="text-xs font-semibold" type="button">Cerrar</button>
-          </div>
-        </div>
-      }
-
-      @if (!tacticalPlan) {
-      <div class="rounded-2xl bg-white p-6 shadow-sm text-center">
-        <p class="text-sm text-slate-500">
-          Genera un plan de ataque detallado con IA: implementación, requerimientos, tiempos y empresas objetivo.
-        </p>
-        <button
-          (click)="generatePlan()"
-          [disabled]="synthesisLoading"
-          class="mt-4 rounded-xl bg-violet-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-violet-700 disabled:opacity-60"
-          type="button">
-          <span class="inline-flex items-center gap-2">
-            @if (synthesisLoading) {
-              <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
-              <span>Generando plan...</span>
-            } @else {
-              <span>✨ Generar Plan de Ataque (IA)</span>
+      <!-- ── Commercial Strategy ────────────────────────────────────────────── -->
+      <div class="rounded-2xl bg-white p-6 shadow-sm">
+        @if (!commercialStrategy) {
+          <div class="text-center">
+            <p class="text-base font-bold text-slate-800">💼 Commercial Strategy</p>
+            <p class="mt-1 text-xs text-slate-400">
+              Generate a B2B sales strategy: business problem, financial impact, MVP scope,
+              target buyer, pricing model and outreach message.
+            </p>
+            <button
+              (click)="generateStrategy()"
+              [disabled]="strategyLoading || isClosed"
+              class="mt-4 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+              type="button">
+              @if (strategyLoading) {
+                <span class="inline-flex items-center gap-2">
+                  <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                  AI is building strategy...
+                </span>
+              } @else {
+                <span>💼 Develop Commercial Strategy (IA)</span>
+              }
+            </button>
+            @if (strategyError) {
+              <p class="mt-3 text-sm text-red-500">{{ strategyError }}</p>
             }
-          </span>
-        </button>
-        @if (synthesisError) {
-          <p class="mt-3 text-sm text-red-500">{{ synthesisError }}</p>
+          </div>
+        } @else {
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-base font-bold text-slate-900">💼 Commercial Strategy</h2>
+              <button
+                (click)="generateStrategy()"
+                [disabled]="strategyLoading || isClosed"
+                class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-60"
+                type="button">
+                @if (strategyLoading) { Regenerating... } @else { ↻ Regenerate }
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Real Business Problem</p>
+                <p class="text-sm leading-relaxed text-slate-800">{{ commercialStrategy.realBusinessProblem }}</p>
+              </div>
+              <div class="rounded-xl border border-green-100 bg-green-50 p-4">
+                <p class="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-green-600">Financial Impact</p>
+                <p class="text-sm leading-relaxed text-green-900">{{ commercialStrategy.financialImpact }}</p>
+              </div>
+              <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                <p class="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-blue-500">MVP Definition</p>
+                <p class="text-sm leading-relaxed text-blue-900">{{ commercialStrategy.mvpDefinition }}</p>
+              </div>
+              <div class="rounded-xl border border-purple-100 bg-purple-50 p-4">
+                <p class="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-purple-500">Target Buyer</p>
+                <p class="text-sm leading-relaxed text-purple-900">{{ commercialStrategy.targetBuyer }}</p>
+              </div>
+              <div class="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                <p class="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-600">Pricing Strategy</p>
+                <p class="text-sm leading-relaxed text-amber-900">{{ commercialStrategy.pricingStrategy }}</p>
+              </div>
+              <div class="rounded-xl border border-rose-100 bg-rose-50 p-4 sm:col-span-2">
+                <p class="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-rose-500">Outreach Message</p>
+                <textarea
+                  readonly
+                  rows="5"
+                  [value]="commercialStrategy.outreachMessage"
+                  class="w-full resize-none rounded-lg bg-white p-3 text-sm leading-relaxed text-slate-800 shadow-sm focus:outline-none">
+                </textarea>
+                <p class="mt-1 text-right text-xs text-slate-400">Copy and paste directly to your CRM or email client.</p>
+              </div>
+            </div>
+
+            @if (strategyError) {
+              <p class="text-sm text-red-500">{{ strategyError }}</p>
+            }
+          </div>
         }
       </div>
-      }
 
-      @if (tacticalPlan) {
-      <div class="space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">Plan de Ataque</h2>
-          <button
-            (click)="generatePlan()"
-            [disabled]="synthesisLoading"
-            class="rounded-lg border border-violet-300 px-3 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-50 disabled:opacity-60"
-            type="button">
-            <span class="inline-flex items-center gap-2">
-              @if (synthesisLoading) {
-                <span class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-violet-700 border-t-transparent"></span>
-                <span>Actualizando...</span>
+      <!-- ── MVP Technical Requirements ─────────────────────────────────────── -->
+      <div class="rounded-2xl bg-white p-6 shadow-sm">
+        @if (!technicalMvp) {
+          <div class="text-center">
+            <p class="text-base font-bold text-slate-800">⚙️ MVP Technical Requirements</p>
+            <p class="mt-1 text-xs text-slate-400">
+              Generate the technical architecture, stack, sprint plan and core features for this MVP.
+            </p>
+            <button
+              (click)="generateTechnicalMvp()"
+              [disabled]="technicalMvpLoading || isClosed"
+              class="mt-4 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:opacity-60"
+              type="button">
+              @if (technicalMvpLoading) {
+                <span class="inline-flex items-center gap-2">
+                  <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                  AI is architecting...
+                </span>
               } @else {
-                <span>↻ Regenerar plan</span>
+                <span>⚙️ Develop MVP Technical Requirements (IA)</span>
               }
-            </span>
+            </button>
+            @if (technicalMvpError) {
+              <p class="mt-3 text-sm text-red-500">{{ technicalMvpError }}</p>
+            }
+          </div>
+        } @else {
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-base font-bold text-slate-900">⚙️ MVP Technical Requirements</h2>
+              <button
+                (click)="generateTechnicalMvp()"
+                [disabled]="technicalMvpLoading || isClosed"
+                class="rounded-lg border border-indigo-300 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50 disabled:opacity-60"
+                type="button">
+                @if (technicalMvpLoading) { Regenerating... } @else { ↻ Regenerate }
+              </button>
+            </div>
+
+            <div class="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+              <p class="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-indigo-500">Architecture Strategy</p>
+              <p class="text-sm leading-relaxed text-indigo-900">{{ technicalMvp.architectureStrategy }}</p>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p class="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Required Tech Stack</p>
+              <div class="flex flex-wrap gap-1.5">
+                @for (tech of technicalMvp.requiredTechStack; track tech) {
+                  <span class="rounded-md bg-slate-800 px-2 py-0.5 font-mono text-xs text-slate-100">{{ tech }}</span>
+                }
+              </div>
+            </div>
+
+            <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
+              <p class="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-blue-500">Estimated Timelines</p>
+              <p class="text-sm leading-relaxed text-blue-900">{{ technicalMvp.estimatedTimelines }}</p>
+            </div>
+
+            <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+              <p class="mb-2 text-[10px] font-bold uppercase tracking-wide text-emerald-600">Core Features</p>
+              <ul class="space-y-1.5">
+                @for (feature of technicalMvp.coreFeatures; track feature) {
+                  <li class="flex items-start gap-2 text-sm text-emerald-900">
+                    <span class="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-emerald-200 text-[10px] font-bold text-emerald-700">✓</span>
+                    {{ feature }}
+                  </li>
+                }
+              </ul>
+            </div>
+
+            @if (technicalMvpError) {
+              <p class="text-sm text-red-500">{{ technicalMvpError }}</p>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- ── Mark as Closed ─────────────────────────────────────────────────── -->
+      @if (!isClosed) {
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm text-center">
+          <p class="text-sm font-semibold text-slate-700">Ready to hand off to the development team?</p>
+          <p class="mt-1 text-xs text-slate-400">
+            Marking as Closed finalizes this product — it will be locked for editing and flagged as ready for development.
+          </p>
+          <button
+            (click)="closeProduct()"
+            [disabled]="closeLoading"
+            class="mt-4 rounded-xl border-2 border-slate-700 bg-white px-6 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-50 disabled:opacity-60"
+            type="button">
+            @if (closeLoading) {
+              <span class="inline-flex items-center gap-2">
+                <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-700 border-t-transparent"></span>
+                Finalizing...
+              </span>
+            } @else {
+              <span>🔒 Mark as Closed / Finalized</span>
+            }
           </button>
         </div>
-
-        <article class="rounded-2xl bg-white p-6 shadow-sm">
-          <div class="flex items-center gap-2">
-            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">1</span>
-            <h3 class="font-bold text-slate-900">Pasos de Implementación</h3>
-          </div>
-          <div class="mt-4 rounded-xl bg-blue-50 p-4">
-            <p class="whitespace-pre-line text-sm leading-relaxed text-blue-900">{{ tacticalPlan.implementacion }}</p>
-          </div>
-        </article>
-
-        <article class="rounded-2xl bg-white p-6 shadow-sm">
-          <div class="flex items-center gap-2">
-            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">2</span>
-            <h3 class="font-bold text-slate-900">Requerimientos y Tiempos</h3>
-          </div>
-          <div class="mt-4 rounded-xl bg-amber-50 p-4">
-            <p class="whitespace-pre-line text-sm leading-relaxed text-amber-900">{{ tacticalPlan.tiempo_y_tecnologias }}</p>
-          </div>
-          @if (tacticalPlan.requerimientos) {
-            <div class="mt-3 rounded-xl bg-slate-50 p-4">
-              <p class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Requerimientos</p>
-              <p class="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-700">{{ tacticalPlan.requerimientos }}</p>
-            </div>
-          }
-        </article>
-
-        <article class="rounded-2xl bg-white p-6 shadow-sm">
-          <div class="flex items-center gap-2">
-            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">3</span>
-            <h3 class="font-bold text-slate-900">Empresas Objetivo (Leads recomendados)</h3>
-          </div>
-          <div class="mt-4 rounded-xl bg-emerald-50 p-4">
-            <p class="whitespace-pre-line text-sm leading-relaxed text-emerald-900">{{ tacticalPlan.empresas_objetivo }}</p>
-          </div>
-        </article>
-      </div>
+      } @else {
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center">
+          <p class="text-sm font-semibold text-slate-600">🔒 This product is Closed and ready for the development team.</p>
+        </div>
       }
+
     }
 
   </div>
 </section>
+
+@if (selectedPopupImageUrl) {
+  <div
+    (click)="closeImagePreview()"
+    class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+    <div
+      (click)="$event.stopPropagation()"
+      class="relative flex max-h-[92vh] w-full max-w-6xl items-center justify-center rounded-3xl bg-white p-3 shadow-2xl md:p-4">
+      <button
+        (click)="closeImagePreview()"
+        class="absolute right-3 top-3 rounded-full bg-slate-900/80 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+        type="button">
+        ✕
+      </button>
+
+      <img
+        [src]="selectedPopupImageUrl"
+        [alt]="product?.productName || 'Product image preview'"
+        class="max-h-[82vh] w-auto max-w-full rounded-2xl object-contain" />
+    </div>
+  </div>
+}

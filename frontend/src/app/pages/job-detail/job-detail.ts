@@ -16,7 +16,7 @@ export class JobDetail implements OnInit {
   job: LinkedInJobDetail | null = null;
   loading = true;
   backLinkPath = '/jobs';
-  backLinkLabel = 'Volver a jobs';
+  backLinkLabel = '← Back to Jobs';
   backLinkQueryParams: Params = {};
   private readonly route = inject(ActivatedRoute);
   private readonly jobsService = inject(JobsService);
@@ -69,14 +69,8 @@ export class JobDetail implements OnInit {
   }
 
   private resolveBackLinkLabel(path: string): string {
-    if (path.startsWith('/opportunities')) {
-      return 'Volver a opportunities';
-    }
-
-    if (path.startsWith('/ai-audit')) {
-      return 'Volver a AI audit';
-    }
-
-    return 'Volver a jobs';
+    if (path.startsWith('/opportunities')) return '← Back to Opportunities';
+    if (path.startsWith('/ai-audit')) return '← Back to AI Audit';
+    return '← Back to Jobs';
   }
 }

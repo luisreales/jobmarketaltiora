@@ -3,7 +3,8 @@ import { CommonModule, PercentPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProductService } from '../../services/product.service';
-import { ProductGenerateResult, ProductQuery, ProductSuggestion } from '../../models/market.models';
+import { ProductQuery, ProductSuggestion, UpdateProductRequest } from '../../models/market.models';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-products',
@@ -12,6 +13,8 @@ import { ProductGenerateResult, ProductQuery, ProductSuggestion } from '../../mo
   templateUrl: './products.html',
 })
 export class Products implements OnInit {
+  readonly apiUrl = environment.apiUrl;
+
   products: ProductSuggestion[] = [];
   loading = false;
   page = 1;
@@ -23,13 +26,39 @@ export class Products implements OnInit {
   filterIndustry = '';
   searchTerm = '';
 
-  generateLoading = false;
-  generateResult: string | null = null;
+  deletingProductIds = new Set<number>();
+  editingProduct: ProductSuggestion | null = null;
+  editModel: UpdateProductRequest = this.createEmptyEditModel();
+  savingEdit = false;
+  editError = '';
+  exporting = false;
+  selectedImageFile: File | null = null;
+  imagePreviewUrl = '';
+  selectedPopupImageUrl = '';
+  selectedPopupProductName = '';
 
   constructor(private readonly productService: ProductService) {}
 
   ngOnInit(): void {
     this.loadProducts();
+  }
+
+  private createEmptyEditModel(): UpdateProductRequest {
+    return {
+      productName: '',
+      productDescription: '',
+      whyNow: '',
+      offer: '',
+      actionToday: '',
+      techFocus: '',
+      estimatedBuildDays: 0,
+      minDealSizeUsd: 0,
+      maxDealSizeUsd: 0,
+      opportunityType: 'Manual',
+      industry: 'Unknown',
+      imageUrl: '',
+      status: 'open'
+    };
   }
 
   get filteredProducts(): ProductSuggestion[] {
@@ -43,22 +72,8 @@ export class Products implements OnInit {
     );
   }
 
-  get topThree(): ProductSuggestion[] {
-    return this.filteredProducts.slice(0, 3);
-  }
-
-  get restProducts(): ProductSuggestion[] {
-    return this.filteredProducts.slice(3);
-  }
-
-  get totalDealPotential(): string {
-    const total = this.topThree.reduce((sum, p) => sum + p.maxDealSizeUsd, 0);
-    return total >= 1000 ? `$${(total / 1000).toFixed(0)}K` : `$${total}`;
-  }
-
-  get avgBuildDays(): number {
-    if (this.topThree.length === 0) return 0;
-    return Math.round(this.topThree.reduce((sum, p) => sum + p.estimatedBuildDays, 0) / this.topThree.length);
+  countByType(type: string): number {
+    return this.products.filter(p => p.opportunityType === type).length;
   }
 
   loadProducts(): void {
@@ -83,12 +98,176 @@ export class Products implements OnInit {
 
   applyFilters(): void {
     this.page = 1;
-    this.generateResult = null;
     this.loadProducts();
   }
 
   clearSearch(): void {
     this.searchTerm = '';
+  }
+
+  openEdit(product: ProductSuggestion, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.editingProduct = product;
+    this.editError = '';
+    this.selectedImageFile = null;
+    this.editModel = {
+      productName: product.productName,
+      productDescription: product.productDescription,
+      whyNow: product.whyNow,
+      offer: product.offer,
+      actionToday: product.actionToday,
+      techFocus: product.techFocus,
+      estimatedBuildDays: product.estimatedBuildDays,
+      minDealSizeUsd: product.minDealSizeUsd,
+      maxDealSizeUsd: product.maxDealSizeUsd,
+      opportunityType: product.opportunityType,
+      industry: product.industry,
+      imageUrl: product.imageUrl ?? '',
+      status: product.status
+    };
+    this.imagePreviewUrl = this.resolveImageUrl(product.imageUrl);
+  }
+
+  closeEdit(): void {
+    this.editingProduct = null;
+    this.editModel = this.createEmptyEditModel();
+    this.selectedImageFile = null;
+    this.imagePreviewUrl = '';
+    this.editError = '';
+    this.savingEdit = false;
+  }
+
+  onImageUrlChanged(): void {
+    if (!this.selectedImageFile) {
+      this.imagePreviewUrl = this.resolveImageUrl(this.editModel.imageUrl);
+    }
+  }
+
+  openImagePreview(product: ProductSuggestion, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const resolvedUrl = this.resolveImageUrl(product.imageUrl);
+    if (!resolvedUrl) return;
+
+    this.selectedPopupImageUrl = resolvedUrl;
+    this.selectedPopupProductName = product.productName;
+  }
+
+  closeImagePreview(): void {
+    this.selectedPopupImageUrl = '';
+    this.selectedPopupProductName = '';
+  }
+
+  onImageSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    this.selectedImageFile = file;
+
+    if (!file) {
+      this.imagePreviewUrl = this.resolveImageUrl(this.editModel.imageUrl);
+      return;
+    }
+
+    this.editModel.imageUrl = '';
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.imagePreviewUrl = typeof reader.result === 'string' ? reader.result : '';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  saveEdit(): void {
+    if (!this.editingProduct || this.savingEdit) return;
+
+    const productId = this.editingProduct.id;
+    this.savingEdit = true;
+    this.editError = '';
+
+    const saveProductDetails = (imageUrl?: string | null): void => {
+      const request: UpdateProductRequest = {
+        ...this.editModel,
+        imageUrl: imageUrl ?? this.editModel.imageUrl
+      };
+
+      this.productService.updateProduct(productId, request).subscribe({
+        next: (updated) => {
+          this.applyUpdatedProduct(updated);
+          this.closeEdit();
+        },
+        error: () => {
+          this.savingEdit = false;
+          this.editError = 'Could not save product changes.';
+        }
+      });
+    };
+
+    if (this.selectedImageFile) {
+      this.productService.uploadProductImage(productId, this.selectedImageFile).subscribe({
+        next: (uploaded) => {
+          saveProductDetails(uploaded.imageUrl ?? '');
+        },
+        error: () => {
+          this.savingEdit = false;
+          this.editError = 'The image upload failed, so the changes were not saved.';
+        }
+      });
+      return;
+    }
+
+    saveProductDetails();
+  }
+
+  private applyUpdatedProduct(updated: ProductSuggestion): void {
+    this.products = this.products.map(p => p.id === updated.id ? updated : p);
+  }
+
+  exportProducts(): void {
+    if (this.exporting) return;
+
+    this.exporting = true;
+    const query: ProductQuery = {
+      page: this.page,
+      pageSize: this.pageSize,
+      opportunityType: this.filterOpportunityType || undefined,
+      industry: this.filterIndustry || undefined,
+    };
+
+    this.productService.exportProductsCsv(query).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `products-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+        this.exporting = false;
+      },
+      error: () => {
+        this.exporting = false;
+      }
+    });
+  }
+
+  deleteProduct(id: number, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.deletingProductIds.has(id)) return;
+    if (!confirm('Delete this product permanently? This cannot be undone.')) return;
+
+    this.deletingProductIds.add(id);
+    this.productService.deleteProduct(id).subscribe({
+      next: () => {
+        this.deletingProductIds.delete(id);
+        this.products = this.products.filter(p => p.id !== id);
+        this.totalCount = Math.max(0, this.totalCount - 1);
+      },
+      error: () => {
+        this.deletingProductIds.delete(id);
+      }
+    });
   }
 
   prevPage(): void {
@@ -97,24 +276,6 @@ export class Products implements OnInit {
 
   nextPage(): void {
     if (this.page < this.totalPages) { this.page++; this.loadProducts(); }
-  }
-
-  triggerGenerate(): void {
-    this.generateLoading = true;
-    this.generateResult = null;
-
-    this.productService.generate().subscribe({
-      next: (result: ProductGenerateResult) => {
-        this.generateResult = `${result.productsGenerated} productos generados · ${result.actionableClusters} clusters accionables`;
-        this.generateLoading = false;
-        this.page = 1;
-        this.loadProducts();
-      },
-      error: () => {
-        this.generateResult = 'Error al generar productos. Verifica que existan clusters accionables.';
-        this.generateLoading = false;
-      }
-    });
   }
 
   opportunityTypeClass(type: string): string {
@@ -146,5 +307,13 @@ export class Products implements OnInit {
 
   techTokens(techFocus: string): string[] {
     return techFocus.split('+').map(t => t.trim()).filter(Boolean);
+  }
+
+  resolveImageUrl(imageUrl?: string | null): string {
+    if (!imageUrl) return '';
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('data:')) {
+      return imageUrl;
+    }
+    return `${this.apiUrl}${imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`}`;
   }
 }

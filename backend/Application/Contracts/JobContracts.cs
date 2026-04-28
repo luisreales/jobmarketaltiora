@@ -11,7 +11,8 @@ public record JobSearchRequest(
     List<string>? Providers = null,
     int? TotalPaging = null,
     int? StartPage = null,
-    int? EndPage = null);
+    int? EndPage = null,
+    bool ShowBrowser = false);
 
 public record JobSearchResponse(int SavedCount, int TotalFound, DateTime ExecutedAtUtc);
 
@@ -67,7 +68,10 @@ public record JobSummaryDto(
     string? SalaryRange,
     string? Seniority,
     string? ContractType,
-    string Url);
+    string Url,
+    // Human-in-the-loop funnel state
+    bool HasOpportunity,
+    int? OpportunityId);
 
 public record JobFullListDto(
     int Id,

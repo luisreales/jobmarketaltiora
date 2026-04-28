@@ -65,4 +65,12 @@ export class AiAuditService {
   getLlmHealth(): Observable<LlmHealth> {
     return this.http.get<LlmHealth>(`${this.aiBaseUrl}/llm-health`);
   }
+
+  clearCachedLogs(): Observable<{ deletedCount: number; message: string }> {
+    return this.http.delete<{ deletedCount: number; message: string }>(`${this.aiBaseUrl}/logs/cache`);
+  }
+
+  deleteAllLogs(): Observable<{ deletedCount: number; message: string }> {
+    return this.http.delete<{ deletedCount: number; message: string }>(`${this.aiBaseUrl}/logs`);
+  }
 }

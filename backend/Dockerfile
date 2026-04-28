@@ -12,5 +12,6 @@ RUN dotnet publish "backend.csproj" -c Release -r linux-arm64 --self-contained t
 FROM base AS final
 WORKDIR /app
 COPY --from=build /app/publish .
+
 ENV ASPNETCORE_URLS=http://+:8080
 ENTRYPOINT ["./backend"]

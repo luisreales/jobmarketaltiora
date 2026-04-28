@@ -1,0 +1,308 @@
+<div class="container mx-auto px-4 py-8 max-w-6xl">
+  <h1 class="text-3xl font-bold mb-8 text-gray-900 dark:text-white">Job Scraping Control</h1>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- LinkedIn Scraping -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
+      <div class="flex items-center mb-4">
+        <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mr-3">
+          <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              d="M10 12a2 2 0 100-4 2 2 0 000 4z"
+            ></path>
+            <path
+              fill-rule="evenodd"
+              d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+              clip-rule="evenodd"
+            ></path>
+          </svg>
+        </div>
+        <h2 class="text-xl font-semibold text-gray-800 dark:text-white">LinkedIn</h2>
+      </div>
+
+      <div class="space-y-3 mb-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Query</label>
+          <input
+            type="text"
+            [(ngModel)]="linkedinQuery"
+            [disabled]="isLinkedInScraping"
+            placeholder="e.g., .NET, Python, React"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
+          <input
+            type="text"
+            [(ngModel)]="linkedinLocation"
+            [disabled]="isLinkedInScraping"
+            placeholder="e.g., Remote, USA, Mexico"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Results</label>
+          <input
+            type="number"
+            [(ngModel)]="linkedinLimit"
+            [disabled]="isLinkedInScraping"
+            min="1"
+            max="1000"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+          />
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Page</label>
+            <input
+              type="number"
+              [(ngModel)]="linkedinStartPage"
+              [disabled]="isLinkedInScraping"
+              min="1"
+              max="100"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Page</label>
+            <input
+              type="number"
+              [(ngModel)]="linkedinEndPage"
+              [disabled]="isLinkedInScraping"
+              min="1"
+              max="100"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+            />
+          </div>
+        </div>
+      </div>
+
+      <button
+        (click)="scrapeLinkedIn()"
+        [disabled]="isLinkedInScraping"
+        class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg transition"
+      >
+        <span *ngIf="!isLinkedInScraping">Run LinkedIn Scraping</span>
+        <span *ngIf="isLinkedInScraping" class="flex items-center justify-center">
+          <svg class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          Processing...
+        </span>
+      </button>
+
+      <div *ngIf="linkedinError" class="mt-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-lg text-sm">
+        {{ linkedinError }}
+      </div>
+
+      <div *ngIf="linkedinResult" class="mt-4 p-3 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded-lg text-sm">
+        <p class="font-semibold">✓ Scraping Complete</p>
+        <p>Found: <strong>{{ linkedinResult.totalFound }}</strong> jobs</p>
+        <p>Saved: <strong>{{ linkedinResult.savedCount }}</strong> jobs</p>
+        <p class="text-xs mt-2">{{ formatDate(linkedinResult.timestamp) }}</p>
+      </div>
+    </div>
+
+    <!-- Upwork Scraping -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-l-4 border-green-500">
+      <div class="flex items-center mb-4">
+        <div class="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mr-3">
+          <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10.5 1.5H4.75A2.75 2.75 0 002 4.25v11A2.75 2.75 0 004.75 18h10.5a2.75 2.75 0 002.75-2.75v-11A2.75 2.75 0 0015.25 1.5z"></path>
+          </svg>
+        </div>
+        <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Upwork</h2>
+      </div>
+
+      <div class="space-y-3 mb-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Query</label>
+          <input
+            type="text"
+            [(ngModel)]="upworkQuery"
+            [disabled]="isUpworkScraping"
+            placeholder="e.g., .NET, Python, React"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
+          <input
+            type="text"
+            [(ngModel)]="upworkLocation"
+            [disabled]="isUpworkScraping"
+            placeholder="e.g., Remote, USA, Mexico"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Results</label>
+          <input
+            type="number"
+            [(ngModel)]="upworkLimit"
+            [disabled]="isUpworkScraping"
+            min="1"
+            max="100"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+          />
+        </div>
+      </div>
+
+      <button
+        (click)="scrapeUpwork()"
+        [disabled]="isUpworkScraping"
+        class="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg transition"
+      >
+        <span *ngIf="!isUpworkScraping">Run Upwork Scraping</span>
+        <span *ngIf="isUpworkScraping" class="flex items-center justify-center">
+          <svg class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          Processing...
+        </span>
+      </button>
+
+      <div *ngIf="upworkError" class="mt-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-lg text-sm">
+        {{ upworkError }}
+      </div>
+
+      <div *ngIf="upworkResult" class="mt-4 p-3 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded-lg text-sm">
+        <p class="font-semibold">✓ Scraping Complete</p>
+        <p>Found: <strong>{{ upworkResult.totalFound }}</strong> jobs</p>
+        <p>Saved: <strong>{{ upworkResult.savedCount }}</strong> jobs</p>
+        <p class="text-xs mt-2">{{ formatDate(upworkResult.timestamp) }}</p>
+      </div>
+    </div>
+
+    <!-- Multi-Provider Scraping -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-l-4 border-purple-500">
+      <div class="flex items-center mb-4">
+        <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center mr-3">
+          <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              fill-rule="evenodd"
+              d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6-4a2 2 0 100-4 2 2 0 000 4z"
+              clip-rule="evenodd"
+            ></path>
+          </svg>
+        </div>
+        <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Multi-Provider</h2>
+      </div>
+
+      <div class="space-y-3 mb-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Query</label>
+          <input
+            type="text"
+            [(ngModel)]="multiQuery"
+            [disabled]="isMultiScraping"
+            placeholder="e.g., .NET, Python, React"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
+          <input
+            type="text"
+            [(ngModel)]="multiLocation"
+            [disabled]="isMultiScraping"
+            placeholder="e.g., Remote, USA, Mexico"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Results</label>
+          <input
+            type="number"
+            [(ngModel)]="multiLimit"
+            [disabled]="isMultiScraping"
+            min="1"
+            max="100"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Providers</label>
+          <div class="space-y-2">
+            <label
+              *ngFor="let provider of availableProviders"
+              class="flex items-center cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                [checked]="isProviderSelected(provider)"
+                (change)="onProviderToggle(provider)"
+                [disabled]="isMultiScraping"
+                class="w-4 h-4 rounded border-gray-300 disabled:opacity-50"
+              />
+              <span class="ml-2 text-sm text-gray-700 dark:text-gray-300 capitalize">
+                {{ provider }}
+              </span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <button
+        (click)="scrapeMultiProvider()"
+        [disabled]="isMultiScraping || selectedProviders.length === 0"
+        class="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg transition"
+      >
+        <span *ngIf="!isMultiScraping">Run Scraping</span>
+        <span *ngIf="isMultiScraping" class="flex items-center justify-center">
+          <svg class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          Processing...
+        </span>
+      </button>
+
+      <div *ngIf="multiError" class="mt-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-lg text-sm">
+        {{ multiError }}
+      </div>
+
+      <div *ngIf="multiResult" class="mt-4 p-3 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded-lg text-sm">
+        <p class="font-semibold">✓ Scraping Complete</p>
+        <p>Found: <strong>{{ multiResult.totalFound }}</strong> jobs</p>
+        <p>Saved: <strong>{{ multiResult.savedCount }}</strong> jobs</p>
+        <p class="text-xs mt-2">{{ formatDate(multiResult.timestamp) }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-8 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+    <h3 class="font-semibold text-blue-900 dark:text-blue-200 mb-2">ℹ️ About This Tool</h3>
+    <ul class="text-sm text-blue-800 dark:text-blue-300 space-y-1">
+      <li>• Use this page to manually trigger job scraping from LinkedIn, Upwork, or both</li>
+      <li>• Automatic hourly scraping is currently disabled</li>
+      <li>• Each scraping operation may take several minutes depending on the search criteria</li>
+      <li>• Results are saved to the database and appear in the Jobs search</li>
+      <li>• Authentication credentials must be configured in environment variables</li>
+      <li>• <strong>For Upwork scraping:</strong> Make sure the scraper service is running with <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">docker-compose up scraper-api</code></li>
+    </ul>
+  </div>
+</div>

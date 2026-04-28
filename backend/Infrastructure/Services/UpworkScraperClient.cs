@@ -13,9 +13,13 @@ public sealed class UpworkScraperClient(HttpClient httpClient, ILogger<UpworkScr
         PropertyNameCaseInsensitive = true
     };
 
-    public async Task<UpworkLoginResult> LoginAsync(string username, string password, CancellationToken cancellationToken = default)
+    private sealed record HealthResponse(string Status, bool Authenticated);
+
+    public async Task<UpworkLoginResult> LoginAsync(string username, string password, bool showBrowser = false, CancellationToken cancellationToken = default)
     {
-        var payload = new { username, password };
+        await EnsureApiAvailableAsync(cancellationToken);
+
+        var payload = new { username, password, showBrowser };
         using var response = await httpClient.PostAsJsonAsync("/upwork/login", payload, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
@@ -36,6 +40,8 @@ public sealed class UpworkScraperClient(HttpClient httpClient, ILogger<UpworkScr
 
     public async Task<List<RawJobData>> ScrapeAsync(SearchRequest request, CancellationToken cancellationToken = default)
     {
+        await EnsureApiAvailableAsync(cancellationToken);
+
         using var response = await httpClient.PostAsJsonAsync("/upwork/scrape", request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
@@ -61,5 +67,33 @@ public sealed class UpworkScraperClient(HttpClient httpClient, ILogger<UpworkScr
             SearchTerm: job.SearchTerm,
             CapturedAt: job.CapturedAt,
             MetadataJson: job.MetadataJson)).ToList();
+    }
+
+    private async Task EnsureApiAvailableAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var response = await httpClient.GetAsync("/health", cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException("Upwork scraper API is not healthy. Please start the scraper service.");
+            }
+
+            var healthResult = await response.Content.ReadFromJsonAsync<HealthResponse>(JsonOptions, cancellationToken);
+            if (healthResult?.Status != "ok")
+            {
+                throw new InvalidOperationException("Upwork scraper API health check failed.");
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Failed to connect to Upwork scraper API. Make sure the scraper service is running.");
+            throw new InvalidOperationException("Upwork scraper API is not available. Please start the scraper service with 'docker-compose up scraper-api'.", ex);
+        }
+        catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Timeout connecting to Upwork scraper API.");
+            throw new InvalidOperationException("Timeout connecting to Upwork scraper API. The service may not be running.", ex);
+        }
     }
 }

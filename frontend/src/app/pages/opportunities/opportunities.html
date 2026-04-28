@@ -3,410 +3,126 @@
 
     <!-- ── Header ───────────────────────────────────────────────────────────── -->
     <header class="rounded-3xl bg-white p-6 shadow-xl md:p-8">
-      <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 class="text-2xl font-extrabold text-slate-900">Market Intelligence</h1>
+          <h1 class="text-2xl font-extrabold text-slate-900">Sales Pipeline</h1>
           <p class="mt-1 text-sm text-slate-500">
-            Clusters comerciales ordenados por PriorityScore — qué atacar esta semana.
+            Manually selected opportunities — go to
+            <a routerLink="/jobs" class="text-blue-600 hover:underline">Jobs</a>
+            and click "+ Opportunity" to add a new one.
           </p>
         </div>
-
-        <div class="flex flex-wrap gap-2">
-          <div class="flex flex-col items-end gap-1">
-            <button
-              (click)="triggerBackfill()"
-              [disabled]="backfillLoading"
-              class="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-              type="button">
-              {{ backfillLoading ? 'Procesando...' : 'Backfill insights' }}
-            </button>
-            @if (backfillResult) {
-              <span class="text-xs text-slate-500">{{ backfillResult }}</span>
-            }
+        <div class="flex items-center gap-3">
+          <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-center">
+            <p class="text-xs text-slate-500">Total</p>
+            <p class="text-xl font-bold text-slate-900">{{ pipelineTotalCount }}</p>
           </div>
-          <div class="flex flex-col items-end gap-1">
-            <button
-              (click)="triggerCleanup()"
-              [disabled]="cleanupLoading"
-              class="rounded-xl border border-rose-300 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-50"
-              type="button">
-              {{ cleanupLoading ? 'Limpiando...' : 'Cleanup (<5 jobs)' }}
-            </button>
-            @if (cleanupResult) {
-              <span class="text-xs text-slate-500">{{ cleanupResult }}</span>
-            }
+          <div class="rounded-xl border border-amber-100 bg-amber-50 px-4 py-2 text-center">
+            <p class="text-xs text-amber-700">Pending</p>
+            <p class="text-xl font-bold text-amber-800">{{ countByStatus('active') }}</p>
           </div>
-          <div class="flex flex-col items-end gap-1">
-            <button
-              (click)="triggerRebuild()"
-              [disabled]="rebuildLoading"
-              class="rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
-              type="button">
-              {{ rebuildLoading ? 'Reconstruyendo...' : 'Rebuild clusters' }}
-            </button>
-            @if (rebuildResult) {
-              <span class="text-xs text-green-600">{{ rebuildResult }}</span>
-            }
+          <div class="rounded-xl border border-green-100 bg-green-50 px-4 py-2 text-center">
+            <p class="text-xs text-green-700">Converted</p>
+            <p class="text-xl font-bold text-green-800">{{ countByStatus('converted') }}</p>
           </div>
         </div>
-      </div>
-
-      <!-- KPIs -->
-      <div class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p class="text-xs text-slate-500">Total clusters</p>
-          <p class="text-xl font-bold text-slate-900">{{ totalCount }}</p>
-        </article>
-        <article class="rounded-xl border border-green-100 bg-green-50 p-3">
-          <p class="text-xs text-green-700">Accionables</p>
-          <p class="text-xl font-bold text-green-800">{{ kpiActionable }}</p>
-        </article>
-        <article class="rounded-xl border border-blue-100 bg-blue-50 p-3">
-          <p class="text-xs text-blue-700">Top BlueOcean</p>
-          <p class="text-xl font-bold text-blue-800">{{ kpiTopBlueOcean | number:'1.0-1' }}</p>
-        </article>
-        <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p class="text-xs text-slate-500">Top Trend</p>
-          <p class="text-sm font-bold text-slate-900 truncate">{{ kpiTopTrend }}</p>
-        </article>
       </div>
     </header>
 
-    <!-- ── Filters ───────────────────────────────────────────────────────────── -->
-    <div class="rounded-2xl bg-white p-4 shadow-sm">
-      <div class="flex flex-wrap items-end gap-3">
-        <label class="flex items-center gap-2 text-sm text-slate-700">
-          <input
-            [(ngModel)]="filterOnlyActionable"
-            class="h-4 w-4 rounded text-blue-600"
-            type="checkbox" />
-          Solo accionables
-        </label>
+    <!-- ── Pipeline table ───────────────────────────────────────────────────── -->
+    <div class="rounded-2xl bg-white shadow-sm">
 
-        <select
-          [(ngModel)]="filterOpportunityType"
-          class="rounded-xl border border-slate-300 px-3 py-2 text-sm">
-          <option value="">Todos los tipos</option>
-          <option value="MVPProduct">MVPProduct</option>
-          <option value="QuickWin">QuickWin</option>
-          <option value="Consulting">Consulting</option>
-          <option value="Ignore">Ignore</option>
-        </select>
+      @if (pipelineLoading) {
+        <div class="py-12 text-center text-sm text-slate-400">Loading pipeline...</div>
+      }
 
-        <select
-          [(ngModel)]="filterIndustry"
-          class="rounded-xl border border-slate-300 px-3 py-2 text-sm">
-          <option value="">Todas las industrias</option>
-          <option value="Fintech">Fintech</option>
-          <option value="Health">Health</option>
-          <option value="Ecommerce">Ecommerce</option>
-          <option value="Logistics">Logistics</option>
-          <option value="SaaS">SaaS</option>
-          <option value="Unknown">Unknown</option>
-        </select>
-
-        <input
-          [(ngModel)]="filterMinBlueOcean"
-          class="w-36 rounded-xl border border-slate-300 px-3 py-2 text-sm"
-          placeholder="Min BlueOcean"
-          type="number" />
-
-        <button
-          (click)="applyFilters()"
-          class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white"
-          type="button">
-          Aplicar
-        </button>
-      </div>
-    </div>
-
-    <!-- ── Clusters grid ─────────────────────────────────────────────────────── -->
-    <section>
-      <div class="mb-3 flex items-center justify-between">
-        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">
-          Clusters ({{ totalCount }} total)
-        </h2>
-        @if (loading) {
-          <p class="text-sm text-slate-400">Cargando...</p>
-        }
-      </div>
-
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        @for (c of clusters; track c.id) {
-        <article
-          [class.ring-2]="selectedCluster?.id === c.id"
-          [class.ring-blue-500]="selectedCluster?.id === c.id"
-          class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
-
-          <!-- Rank + OpportunityType + LlmStatus -->
-          <div class="flex items-center justify-between gap-2">
-            <span class="text-xs font-bold text-slate-400">#{{ c.roiRank }}</span>
-            <div class="flex items-center gap-1.5">
-              <span
-                [class]="opportunityTypeClass(c.opportunityType)"
-                class="rounded-full px-2 py-0.5 text-xs font-semibold">
-                {{ c.opportunityType }}
-              </span>
-              @if (c.isActionable) {
-                <span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-                  ✓ accionable
-                </span>
-              }
-              <span
-                [class]="llmStatusClass(c.llmStatus)"
-                class="rounded-full px-2 py-0.5 text-xs">
-                {{ c.llmStatus }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Label -->
-          <h3 class="mt-2 text-sm font-bold leading-snug text-slate-900">{{ c.label }}</h3>
-
-          <!-- Industry + CompanyType chips -->
-          <div class="mt-2 flex flex-wrap gap-1.5">
-            @if (c.industry !== 'Unknown') {
-              <span class="rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
-                {{ c.industry }}
-              </span>
-            }
-            <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-              {{ c.companyType }}
-            </span>
-          </div>
-
-          <div class="mt-2 flex flex-wrap gap-1">
-            @for (t of techTokens(c.normalizedTechStack); track t) {
-              <span class="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-slate-200">
-                {{ t }}
-              </span>
-            }
-          </div>
-
-          <!-- Metrics -->
-          <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
-            <div class="flex justify-between">
-              <dt>Jobs</dt>
-              <dd class="font-semibold">{{ c.jobCount }}</dd>
-            </div>
-            <div class="flex justify-between">
-              <dt>Direct</dt>
-              <dd class="font-semibold">{{ c.directClientRatio | percent:'1.0-0' }}</dd>
-            </div>
-            <div class="flex justify-between">
-              <dt>BlueOcean</dt>
-              <dd class="font-bold text-blue-700">{{ c.blueOceanScore | number:'1.0-1' }}</dd>
-            </div>
-            <div class="flex justify-between">
-              <dt>Priority</dt>
-              <dd class="font-bold text-slate-900">{{ c.priorityScore }}</dd>
-            </div>
-            <div class="flex justify-between">
-              <dt>Avg Score</dt>
-              <dd>{{ c.avgOpportunityScore | number:'1.0-1' }}</dd>
-            </div>
-            <div class="flex justify-between">
-              <dt>Urgency</dt>
-              <dd>{{ c.avgUrgencyScore | number:'1.0-1' }}</dd>
-            </div>
-          </dl>
-
-          <!-- Growth -->
-          <p class="mt-1 text-xs" [class]="growthClass(c.growthRate)">
-            {{ growthArrow(c.growthRate) }} Growth {{ c.growthRate | percent:'1.0-0' }}
+      @if (!pipelineLoading && pipeline.length === 0) {
+        <div class="rounded-2xl p-10 text-center">
+          <p class="text-sm font-semibold text-slate-600">No opportunities yet.</p>
+          <p class="mt-1 text-xs text-slate-400">
+            Go to <a routerLink="/jobs" class="text-blue-600 underline">Jobs</a> and click
+            "+ Opportunity" on any job card to start your pipeline.
           </p>
+        </div>
+      }
 
-          @if (c.recommendedStrategy) {
-            <p class="mt-2 text-xs font-medium text-slate-700">
-              Strategy: {{ c.recommendedStrategy }}
-            </p>
-          }
+      @if (!pipelineLoading && pipeline.length > 0) {
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 bg-slate-50">
+                <th class="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Company</th>
+                <th class="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Job Title</th>
+                <th class="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Analysis</th>
+                <th class="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Stage</th>
+                <th class="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Added</th>
+                <th class="px-5 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-500">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @for (opp of pipeline; track opp.id) {
+                <tr class="hover:bg-blue-50 transition-colors">
+                  <td class="px-5 py-3.5 font-semibold text-slate-800">{{ opp.company }}</td>
+                  <td class="max-w-[260px] truncate px-5 py-3.5 text-slate-600">{{ opp.jobTitle }}</td>
+                  <td class="px-5 py-3.5">
+                    <span [class]="'rounded-full px-2.5 py-1 text-xs font-semibold ' + analysisStatusClass(opp.llmStatus)">
+                      {{ opp.llmStatus === 'completed' ? 'Analyzed' : opp.llmStatus === 'failed' ? 'Failed' : 'Pending' }}
+                    </span>
+                  </td>
+                  <td class="px-5 py-3.5">
+                    <span [class]="'rounded-full px-2.5 py-1 text-xs font-semibold ' + stageClass(opp.status)">
+                      {{ opp.status === 'converted' ? '✓ Converted' : 'Active' }}
+                    </span>
+                  </td>
+                  <td class="px-5 py-3.5 text-xs text-slate-400">{{ opp.createdAt | date:'d MMM y' }}</td>
+                  <td class="px-5 py-3.5 text-right">
+                    <div class="inline-flex items-center gap-2">
+                      <a
+                        [routerLink]="['/opportunities', opp.id]"
+                        class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700">
+                        View →
+                      </a>
+                      @if (deletingIds.has(opp.id)) {
+                        <span class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-400">
+                          ...
+                        </span>
+                      } @else {
+                        <button
+                          (click)="deleteOpportunity(opp.id)"
+                          class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                          type="button">
+                          − Remove
+                        </button>
+                      }
+                    </div>
+                    @if (deleteErrors.has(opp.id)) {
+                      <p class="mt-1 text-right text-xs text-red-500">{{ deleteErrors.get(opp.id) }}</p>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
 
-          @if (isSynthesisExpanded(c)) {
-          <div class="mt-3 space-y-2 border-t border-violet-100 pt-3">
-            <div class="rounded-lg bg-violet-50 p-3">
-              <p class="text-[10px] font-bold uppercase tracking-wide text-violet-500">Dolor de mercado</p>
-              <p class="mt-0.5 text-xs leading-relaxed text-violet-900">{{ c.synthesizedPain }}</p>
-            </div>
-            <div class="rounded-lg bg-emerald-50 p-3">
-              <p class="text-[10px] font-bold uppercase tracking-wide text-emerald-600">MVP a vender</p>
-              <p class="mt-0.5 text-xs leading-relaxed text-emerald-900">{{ c.synthesizedMvp }}</p>
-            </div>
-            @if (c.synthesizedLeadMessage) {
-              <div class="rounded-lg border border-slate-200 bg-white p-3">
-                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Cold email para el CTO</p>
-                <p class="mt-0.5 whitespace-pre-line text-xs leading-relaxed text-slate-700">{{ c.synthesizedLeadMessage }}</p>
-              </div>
-            }
-          </div>
-          }
-
-          <div class="mt-4 flex gap-2">
-            <button
-              (click)="openLeads(c)"
-              [class.bg-blue-600]="selectedCluster?.id === c.id"
-              [class.text-white]="selectedCluster?.id === c.id"
-              [class.border-blue-600]="selectedCluster?.id === c.id"
-              class="flex-1 rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 transition"
-              type="button">
-              {{ selectedCluster?.id === c.id ? 'Cerrar leads' : 'Ver leads' }}
-            </button>
-            @if (c.isActionable) {
-              <button
-                (click)="synthesizeCluster(c)"
-                [disabled]="isSynthesisLoading(c)"
-                class="flex-1 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
-                type="button">
-                @if (isSynthesisLoading(c)) {
-                  <span>Analizando...</span>
-                } @else if (!isSynthesisExpanded(c)) {
-                  <span>✨ Generar Detalle (IA)</span>
-                } @else {
-                  <span>Ocultar detalle</span>
-                }
+        <!-- Pagination -->
+        @if (pipelineTotalPages > 1) {
+          <div class="flex items-center justify-between border-t border-slate-100 px-5 py-4 text-sm">
+            <p class="text-xs text-slate-500">Page {{ pipelinePage }} of {{ pipelineTotalPages }} · {{ pipelineTotalCount }} total</p>
+            <div class="flex gap-2">
+              <button (click)="prevPipelinePage()" [disabled]="pipelinePage === 1 || pipelineLoading"
+                class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40" type="button">
+                ← Prev
               </button>
-            }
+              <button (click)="nextPipelinePage()" [disabled]="pipelinePage === pipelineTotalPages || pipelineLoading"
+                class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40" type="button">
+                Next →
+              </button>
+            </div>
           </div>
-        </article>
         }
-      </div>
-
-      @if (!loading && clusters.length === 0) {
-        <div class="mt-6 text-center">
-          <p class="text-sm text-slate-500">Sin clusters. Ejecuta <strong>Backfill insights</strong> y luego <strong>Rebuild clusters</strong>.</p>
-        </div>
       }
-
-      <div class="mt-5 flex items-center justify-between">
-        <button
-          (click)="prevPage()"
-          [disabled]="page <= 1 || loading"
-          class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
-          type="button">
-          Prev
-        </button>
-        <span class="text-sm text-slate-500">Página {{ page }} / {{ totalPages }}</span>
-        <button
-          (click)="nextPage()"
-          [disabled]="page >= totalPages || loading"
-          class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
-          type="button">
-          Next
-        </button>
-      </div>
-    </section>
-
-    @if (selectedCluster) {
-    <section class="rounded-2xl bg-white p-6 shadow-xl">
-      <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">Leads del cluster</h2>
-          <p class="text-sm font-semibold text-slate-800">{{ selectedCluster.label }}</p>
-          <p class="text-xs text-slate-500">{{ leadsTotalCount }} empresas · ordenadas por LeadScore</p>
-        </div>
-        <button
-          (click)="clearLeads()"
-          class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
-          type="button">
-          Cerrar
-        </button>
-      </div>
-
-      <div class="overflow-x-auto rounded-xl border border-slate-200">
-        <table class="min-w-full divide-y divide-slate-200 text-sm">
-          <thead class="bg-slate-50">
-            <tr>
-              <th class="px-3 py-2 text-left">Empresa</th>
-              <th class="px-3 py-2 text-left">Rol</th>
-              <th class="px-3 py-2 text-left">Source</th>
-              <th class="px-3 py-2 text-right">Lead</th>
-              <th class="px-3 py-2 text-right">Score</th>
-              <th class="px-3 py-2 text-right">Urgency</th>
-              <th class="px-3 py-2 text-center">Direct</th>
-              <th class="px-3 py-2 text-left">Acciones</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 bg-white">
-            @for (lead of leads; track lead.jobId) {
-            <tr class="hover:bg-slate-50">
-              <td class="px-3 py-2 font-medium">{{ lead.company }}</td>
-              <td class="max-w-[180px] truncate px-3 py-2 text-slate-600">{{ lead.title }}</td>
-              <td class="px-3 py-2 text-slate-500">{{ lead.source }}</td>
-              <td class="px-3 py-2 text-right font-bold text-blue-700">{{ lead.leadScore }}</td>
-              <td class="px-3 py-2 text-right">{{ lead.opportunityScore }}</td>
-              <td class="px-3 py-2 text-right">{{ lead.urgencyScore }}</td>
-              <td class="px-3 py-2 text-center">
-                <span
-                  [class]="lead.isDirectClient ? 'text-green-600' : 'text-slate-400'"
-                  class="text-xs font-semibold">
-                  {{ lead.isDirectClient ? 'Directo' : 'Consulting' }}
-                </span>
-              </td>
-              <td class="px-3 py-2">
-                <div class="flex items-center gap-3">
-                  <a
-                    [queryParams]="getJobDetailQueryParams()"
-                    [routerLink]="['/jobs', lead.jobId]"
-                    class="text-blue-700 hover:underline text-xs">
-                    Detalle
-                  </a>
-                  <a
-                    [href]="lead.url"
-                    class="text-slate-500 hover:underline text-xs"
-                    rel="noopener noreferrer"
-                    target="_blank">
-                    Externo
-                  </a>
-                </div>
-              </td>
-            </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-
-      <div class="mt-4 flex items-center justify-between">
-        <button
-          (click)="prevLeadsPage()"
-          [disabled]="leadsPage <= 1 || leadsLoading"
-          class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
-          type="button">
-          Prev
-        </button>
-        <span class="text-sm text-slate-500">
-          Página {{ leadsPage }} / {{ leadsTotalPages }} · {{ leadsTotalCount }} total
-        </span>
-        <button
-          (click)="nextLeadsPage()"
-          [disabled]="leadsPage >= leadsTotalPages || leadsLoading"
-          class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
-          type="button">
-          Next
-        </button>
-      </div>
-
-      @if (leadsLoading) {
-        <p class="mt-2 text-sm text-slate-400">Cargando leads...</p>
-      }
-    </section>
-    }
-
-    @if (trends.length > 0) {
-    <section class="rounded-2xl bg-white p-5 shadow-sm">
-      <h2 class="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">Tendencias (14 días)</h2>
-      <div class="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-5">
-        @for (t of trends; track t.painCategory) {
-          <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p class="text-xs font-semibold text-slate-500 truncate">{{ t.painCategory }}</p>
-            <p class="mt-1 text-lg font-bold text-slate-900">{{ t.currentCount }}</p>
-            <p class="text-xs" [class]="t.trendPercentage >= 0 ? 'text-green-600' : 'text-red-500'">
-              {{ t.trendPercentage >= 0 ? '↑' : '↓' }} {{ t.trendPercentage | number:'1.0-0' }}%
-            </p>
-          </article>
-        }
-      </div>
-    </section>
-    }
+    </div>
 
   </div>
 </section>

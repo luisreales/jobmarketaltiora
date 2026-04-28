@@ -6,12 +6,16 @@ namespace backend.Infrastructure.Data;
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
     public DbSet<JobOffer> JobOffers => Set<JobOffer>();
+    public DbSet<Opportunity> Opportunities => Set<Opportunity>();
     public DbSet<JobInsight> JobInsights => Set<JobInsight>();
     public DbSet<MarketCluster> MarketClusters => Set<MarketCluster>();
     public DbSet<ProductSuggestion> ProductSuggestions => Set<ProductSuggestion>();
     public DbSet<AiPromptLog> AiPromptLogs => Set<AiPromptLog>();
     public DbSet<AiPromptTemplate> AiPromptTemplates => Set<AiPromptTemplate>();
     public DbSet<ProviderSession> ProviderSessions => Set<ProviderSession>();
+    public DbSet<OpportunityIdea> OpportunityIdeas => Set<OpportunityIdea>();
+    public DbSet<CommercialStrategy> CommercialStrategies => Set<CommercialStrategy>();
+    public DbSet<MvpRequirement> MvpRequirements => Set<MvpRequirement>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -145,6 +149,27 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
+        modelBuilder.Entity<Opportunity>(entity =>
+        {
+            entity.Property(e => e.Company).HasMaxLength(220).IsRequired();
+            entity.Property(e => e.JobTitle).HasMaxLength(300).IsRequired();
+            entity.Property(e => e.JobDescription).HasColumnType("text");
+            entity.Property(e => e.TechStack).HasMaxLength(300);
+            entity.Property(e => e.ProductIdeasJson).HasColumnType("text");
+            entity.Property(e => e.LlmStatus).HasMaxLength(20).IsRequired().HasDefaultValue("pending");
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("active");
+
+            entity.HasIndex(e => e.JobId);
+            entity.HasIndex(e => e.LlmStatus);
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.Status);
+
+            entity.HasOne(e => e.Job)
+                .WithMany()
+                .HasForeignKey(e => e.JobId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<ProductSuggestion>(entity =>
         {
             entity.Property(e => e.ProductName).HasMaxLength(200).IsRequired();
@@ -160,11 +185,77 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.Industry).HasMaxLength(60).IsRequired().HasDefaultValue("Unknown");
             entity.Property(e => e.LlmStatus).HasMaxLength(20).IsRequired().HasDefaultValue("pending");
             entity.Property(e => e.SynthesisDetailJson).HasColumnType("text");
+            entity.Property(e => e.TechnicalMvpJson).HasColumnType("text");
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("open");
+            entity.Property(e => e.OpportunityId);
+            entity.Property(e => e.ImageUrl).HasMaxLength(1200);
 
             entity.HasIndex(e => e.ProductName).IsUnique();
             entity.HasIndex(e => e.PriorityScore);
             entity.HasIndex(e => e.GeneratedAt);
             entity.HasIndex(e => e.OpportunityType);
+            entity.HasIndex(e => e.OpportunityId);
+            entity.HasIndex(e => e.Status);
+
+            entity.HasOne(e => e.Opportunity)
+                .WithMany(o => o.Products)
+                .HasForeignKey(e => e.OpportunityId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<OpportunityIdea>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(300).IsRequired();
+            entity.Property(e => e.BusinessJustification).HasColumnType("text").IsRequired();
+            entity.Property(e => e.OpportunityId);
+
+            entity.HasIndex(e => e.OpportunityId);
+            entity.HasIndex(e => e.CreatedAt);
+
+            entity.HasOne(e => e.Opportunity)
+                .WithMany(o => o.Ideas)
+                .HasForeignKey(e => e.OpportunityId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<CommercialStrategy>(entity =>
+        {
+            entity.Property(e => e.ProductName).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CompanyContext).HasColumnType("text").IsRequired();
+            entity.Property(e => e.RealBusinessProblem).HasColumnType("text").IsRequired();
+            entity.Property(e => e.FinancialImpact).HasColumnType("text").IsRequired();
+            entity.Property(e => e.MvpDefinition).HasColumnType("text").IsRequired();
+            entity.Property(e => e.TargetBuyer).HasColumnType("text").IsRequired();
+            entity.Property(e => e.PricingStrategy).HasColumnType("text").IsRequired();
+            entity.Property(e => e.OutreachMessage).HasColumnType("text").IsRequired();
+
+            entity.HasIndex(e => e.ProductId);
+            entity.HasIndex(e => e.GeneratedAt);
+
+            entity.HasOne(e => e.Product)
+                .WithMany()
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<MvpRequirement>(entity =>
+        {
+            entity.Property(e => e.ProductName).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CompanyContext).HasColumnType("text").IsRequired();
+            entity.Property(e => e.ArchitectureStrategy).HasColumnType("text").IsRequired();
+            entity.Property(e => e.RequiredTechStackJson).HasColumnType("text").IsRequired().HasDefaultValue("[]");
+            entity.Property(e => e.EstimatedTimelines).HasColumnType("text").IsRequired();
+            entity.Property(e => e.CoreFeaturesJson).HasColumnType("text").IsRequired().HasDefaultValue("[]");
+
+            entity.HasIndex(e => e.ProductId);
+            entity.HasIndex(e => e.GeneratedAt);
+
+            entity.HasOne(e => e.Product)
+                .WithMany()
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<AiPromptTemplate>(entity =>

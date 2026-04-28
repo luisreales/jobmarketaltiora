@@ -65,7 +65,7 @@ public class AuthController(
     {
         try
         {
-            await orchestrator.LoginAsync(request.Provider, request.Username, request.Password, cancellationToken);
+            await orchestrator.LoginAsync(request.Provider, request.Username, request.Password, cancellationToken: cancellationToken);
             var status = await orchestrator.GetAuthStatusAsync(request.Provider, cancellationToken);
 
             return Ok(new ProviderAuthStatusResponse(

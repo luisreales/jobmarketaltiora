@@ -26,8 +26,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      scraper-api:
-        condition: service_started
     ports:
       - "8080:8080"
     environment:
@@ -64,7 +62,8 @@ services:
       context: ./scraper-api
       dockerfile: Dockerfile
     container_name: jobmarketaltiora-scraper-api
-    restart: unless-stopped
+    restart: "no"  # Changed from unless-stopped to prevent auto-start
+    profiles: ["scraper"]  # Add profile to control when this service starts
     shm_size: '2gb'
     environment:
       UPWORK_HEADLESS: "true"

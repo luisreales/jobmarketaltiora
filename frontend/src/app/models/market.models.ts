@@ -169,16 +169,168 @@ export interface ProductSuggestion {
   clusterCount: number;
   // Decision
   priorityScore: number;
-  opportunityType: 'MVPProduct' | 'QuickWin' | 'Consulting';
+  opportunityType: 'MVPProduct' | 'QuickWin' | 'Consulting' | 'Manual';
   industry: string;
   // LLM
   synthesisDetailJson?: string | null;
+  technicalMvpJson?: string | null;
   llmStatus: 'pending' | 'completed' | 'failed';
   generatedAt: string;
+  // Manual funnel
+  opportunityId?: number | null;
+  sourceIdeaId?: string | null;
+  imageUrl?: string | null;
+  // Lifecycle
+  status: 'open' | 'closed';
+}
+
+export interface UpdateProductRequest {
+  productName: string;
+  productDescription: string;
+  whyNow: string;
+  offer: string;
+  actionToday: string;
+  techFocus: string;
+  estimatedBuildDays: number;
+  minDealSizeUsd: number;
+  maxDealSizeUsd: number;
+  opportunityType: 'MVPProduct' | 'QuickWin' | 'Consulting' | 'Manual';
+  industry: string;
+  imageUrl?: string | null;
+  status: 'open' | 'closed';
+}
+
+export interface TechnicalMvp {
+  architectureStrategy: string;
+  requiredTechStack: string[];
+  estimatedTimelines: string;
+  coreFeatures: string[];
 }
 
 export interface ProductGenerateResult {
   productsGenerated: number;
   actionableClusters: number;
   ranAt: string;
+}
+
+// ── Human-in-the-loop funnel models ──────────────────────────────────────────
+
+export interface OpportunityQuery {
+  llmStatus?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface Opportunity {
+  id: number;
+  jobId: number;
+  company: string;
+  jobTitle: string;
+  jobDescription?: string | null;
+  techStack?: string | null;
+  productIdeasJson?: string | null;
+  llmStatus: 'pending' | 'completed' | 'failed';
+  status: 'active' | 'converted';
+  createdAt: string;
+  synthesizedAt?: string | null;
+  // Bidirectional tracking: SourceIdeaIds of products already created from this opportunity
+  convertedIdeaIds: string[];
+}
+
+export interface ProductIdea {
+  id: string;  // URL-friendly slug (e.g. "cloud-audit-sprint") — used for duplicate prevention
+  name: string;
+  shortTechnicalDescription?: string;
+  businessJustification?: string;
+}
+
+export interface CreateProductFromOpportunityRequest {
+  opportunityId: number;
+  name: string;
+  shortTechnicalDescription: string;
+  sourceIdeaId?: string | null;
+}
+
+// ── Idea Vault models ─────────────────────────────────────────────────────────
+
+export interface OpportunityIdea {
+  id: string;            // URL-friendly slug
+  name: string;
+  businessJustification: string;
+  opportunityId?: number | null;
+  opportunityCompany?: string | null;
+  opportunityJobTitle?: string | null;
+  createdAt: string;
+}
+
+export interface UpdateOpportunityIdeaRequest {
+  name: string;
+  businessJustification: string;
+  opportunityId?: number | null;
+}
+
+// Commercial strategy parsed from SynthesisDetailJson for Phase 3
+export interface CommercialStrategy {
+  realBusinessProblem: string;
+  financialImpact: string;
+  mvpDefinition: string;
+  targetBuyer: string;
+  pricingStrategy: string;
+  outreachMessage: string;
+}
+
+// ── Commercial Strategy Vault ─────────────────────────────────────────────────
+
+export interface CommercialStrategyRecord {
+  id: number;
+  productId?: number | null;
+  productName_Linked?: string | null;
+  productName: string;
+  companyContext: string;
+  realBusinessProblem: string;
+  financialImpact: string;
+  mvpDefinition: string;
+  targetBuyer: string;
+  pricingStrategy: string;
+  outreachMessage: string;
+  generatedAt: string;
+}
+
+export interface CommercialStrategyQuery {
+  search?: string;
+  productId?: number;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface GenerateCommercialStrategyRequest {
+  context: string;
+  productId?: number | null;
+}
+
+// ── MVP Requirements Vault ────────────────────────────────────────────────────
+
+export interface MvpRequirementRecord {
+  id: number;
+  productId?: number | null;
+  productName_Linked?: string | null;
+  productName: string;
+  companyContext: string;
+  architectureStrategy: string;
+  requiredTechStackJson: string;
+  estimatedTimelines: string;
+  coreFeaturesJson: string;
+  generatedAt: string;
+}
+
+export interface MvpRequirementQuery {
+  search?: string;
+  productId?: number;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface GenerateMvpRequirementRequest {
+  context: string;
+  productId?: number | null;
 }

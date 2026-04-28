@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { JobsQueryRequest, LinkedInJobSummary } from '../../models/job.models';
 import { JobsService } from '../../services/jobs.service';
+import { OpportunityService } from '../../services/opportunity.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -34,6 +35,50 @@ export class Dashboard implements OnInit {
   private hasCompletedInitialLoad = false;
 
   private readonly jobsService = inject(JobsService);
+  private readonly opportunityService = inject(OpportunityService);
+
+  // Per-job in-flight state (add or remove)
+  opportunityActionLoading = new Set<number>();
+  // Per-job error messages
+  convertErrors = new Map<number, string>();
+
+  hasOpportunity(job: { hasOpportunity: boolean; id: number }): boolean {
+    return job.hasOpportunity;
+  }
+
+  toggleOpportunity(job: { id: number; hasOpportunity: boolean; opportunityId?: number | null }): void {
+    if (this.opportunityActionLoading.has(job.id)) return;
+    this.opportunityActionLoading.add(job.id);
+    this.convertErrors.delete(job.id);
+
+    if (job.hasOpportunity) {
+      // Remove opportunity
+      this.opportunityService.removeFromJob(job.id).subscribe({
+        next: () => {
+          this.opportunityActionLoading.delete(job.id);
+          job.hasOpportunity = false;
+          job.opportunityId = null;
+        },
+        error: () => {
+          this.opportunityActionLoading.delete(job.id);
+          this.convertErrors.set(job.id, 'Remove failed. Retry?');
+        }
+      });
+    } else {
+      // Add opportunity
+      this.opportunityService.createFromJob(job.id).subscribe({
+        next: (opp) => {
+          this.opportunityActionLoading.delete(job.id);
+          job.hasOpportunity = true;
+          job.opportunityId = opp.id;
+        },
+        error: () => {
+          this.opportunityActionLoading.delete(job.id);
+          this.convertErrors.set(job.id, 'Add failed. Retry?');
+        }
+      });
+    }
+  }
 
   ngOnInit(): void {
     const restoredFromQuery = this.restoreStateFromQueryParams();
@@ -137,8 +182,20 @@ export class Dashboard implements OnInit {
     }
   }
 
-  get pageRange(): number[] {
-    return Array.from({ length: this.totalPages }, (_, index) => index + 1);
+  get pageRange(): (number | null)[] {
+    const total = this.totalPages;
+    const current = this.page;
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    const pages: (number | null)[] = [1];
+    if (current > 3) pages.push(null);
+    for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p++) {
+      pages.push(p);
+    }
+    if (current < total - 2) pages.push(null);
+    pages.push(total);
+    return pages;
   }
 
   formatCurrency(value: number): string {

@@ -61,6 +61,15 @@ public class UpdateAiPromptTemplateRequest
     public string? UpdatedBy { get; set; }
 }
 
+public class CreateAiPromptTemplateRequest
+{
+    public string Key { get; set; } = string.Empty;
+    public string Template { get; set; } = string.Empty;
+    public string? Version { get; set; }
+    public bool IsActive { get; set; } = true;
+    public string? UpdatedBy { get; set; }
+}
+
 public record AiWorkerStatusDto(
     bool IsRunning,
     DateTime? LastStartedAt,

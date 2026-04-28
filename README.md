@@ -1,92 +1,100 @@
-# HotelScrapingVIP
+# LinkedIn Job Scraping Platform
 
-Full-stack hotel price tracker:
+Full-stack job opportunity management system:
 
-- backend: .NET Web API + Playwright scraper + PostgreSQL
-- frontend: Angular dashboard/search/detail UI
+- **Backend**: .NET 9 Web API + Playwright scraper + PostgreSQL + EF Core
+- **Frontend**: Angular dashboard with job search, opportunity management, and product ideation
+- **Scraping**: LinkedIn and Upwork job scraping with AI-powered product idea generation
 
-## 1. Run Full Stack With Docker (recommended)
+## Features
 
-From project root:
+- 🔍 **Job Scraping**: Manual scraping from LinkedIn and Upwork
+- 🤖 **AI Product Ideas**: Generate commercial product ideas from job postings using Semantic Kernel
+- 📊 **Opportunity Management**: Convert jobs to sales opportunities with AI analysis
+- 🏷️ **Product Catalog**: Create and manage B2B product suggestions with images
+- 📈 **Sales Funnel**: Track opportunities from jobs to products to conversions
+
+## Quick Start with Docker
 
 ```bash
+# Start all services (backend, frontend, postgres)
 docker compose up --build -d
-```
 
-Check status:
-
-```bash
+# Check status
 docker compose ps
-docker compose logs -f backend
-docker compose logs -f frontend
 ```
 
-URLs:
-
+**URLs:**
 - Frontend: http://localhost:4200
 - Backend API: http://localhost:8080
+- PostgreSQL: localhost:5432
 
-Quick endpoint test:
+## Manual Job Scraping
 
-```bash
-curl "http://localhost:8080/api/booking/search?city=Madrid&checkIn=2026-06-10&checkOut=2026-06-12"
-```
+1. Open http://localhost:4200/scraping
+2. Choose scraping method:
+   - **LinkedIn**: Direct browser scraping
+   - **Upwork**: Requires scraper API service
+   - **Multi-Provider**: Both platforms
 
-Stop stack:
+### For Upwork Scraping
 
-```bash
-docker compose down
-```
-
-Stop and remove DB volume:
-
-```bash
-docker compose down -v
-```
-
-### LinkedIn checkpoint/challenge in Docker
-
-The Docker backend forces `Jobs__Playwright__LoginHeadless=true`, so LinkedIn manual verification cannot be completed inside the container.
-
-Use this flow:
-
-1. Stop backend container (`docker compose stop backend`).
-2. Run backend locally with `Jobs:Playwright:LoginHeadless=false`.
-3. Call `POST /api/auth/login`, complete the LinkedIn checkpoint in the opened browser, and wait for success.
-4. Confirm `backend/playwright-state/linkedin.json` exists.
-5. Start backend container again (`docker compose start backend`) and continue searches.
-
-When scraping LinkedIn, backend now validates session health by opening `/feed` with stored state before running the search. If LinkedIn redirects to login/checkpoint/challenge, API returns `409` and asks for re-authentication.
-
-## 2. Run Backend Locally (without Docker)
-
-### Prerequisites
-
-- .NET SDK installed (project currently targets net9.0)
-- PostgreSQL running on localhost:5432
-- DB credentials matching backend/appsettings.Development.json
-
-### Install Playwright browsers (required one-time)
-
-From backend folder:
+Start the scraper API service:
 
 ```bash
-dotnet build
-pwsh bin/Debug/net9.0/playwright.ps1 install
+# Start only the scraper service
+docker compose --profile scraper up scraper-api -d
+
+# Or start all services including scraper
+docker compose --profile scraper up -d
 ```
 
-If `pwsh` is not installed, use Docker mode instead, or install PowerShell.
+## API Endpoints
 
-### Start API
+### Jobs
+- `POST /api/jobs/search/scrape` - Scrape jobs from LinkedIn
+- `POST /api/jobs/search/scrape/upwork` - Scrape jobs from Upwork
+- `GET /api/jobs` - List scraped jobs
+
+### Opportunities
+- `GET /api/opportunities` - List opportunities
+- `POST /api/opportunities/{id}/synthesize-ideas` - Generate AI product ideas
+- `POST /api/opportunities/from-job/{jobId}` - Create opportunity from job
+
+### Products
+- `GET /api/products` - List products
+- `POST /api/products/from-opportunity` - Create product from opportunity
+- `POST /api/products/{id}/image` - Upload product image
+
+## Environment Variables
+
+Create a `.env` file in the project root:
+
+```bash
+# LinkedIn credentials
+LINKEDIN_USERNAME=your_email@example.com
+LINKEDIN_PASSWORD=your_password
+
+# Upwork credentials
+UPWORK_USERNAME=your_upwork_username
+UPWORK_PASSWORD=your_upwork_password
+
+# AI/LLM (optional)
+SEMANTIC_KERNEL_ENABLED=true
+FLOW_API_KEY=your_api_key
+```
+
+## Development Setup
+
+### Backend (.NET 9)
 
 ```bash
 cd backend
+dotnet build
 dotnet run
 ```
 
-If you get process exit code 134, it is usually missing Playwright browser dependencies; Docker mode is the fastest fix.
-
-## 3. Run Frontend Locally
+### Frontend (Angular)
 
 ```bash
 cd frontend
@@ -94,9 +102,47 @@ npm install
 npm start
 ```
 
-Frontend URL:
+### Database
 
-- http://localhost:4200
+The PostgreSQL container starts automatically with Docker Compose.
+
+## Troubleshooting
+
+### Upwork Scraping Errors
+
+**Error**: "Upwork scraper API is not available"
+
+**Solution**: Start the scraper service:
+```bash
+docker compose --profile scraper up scraper-api -d
+```
+
+### LinkedIn Authentication
+
+**Error**: "Scraping requires re-authentication"
+
+**Solution**: 
+1. Stop backend container: `docker compose stop backend`
+2. Run backend locally with `Jobs__Playwright__LoginHeadless=false`
+3. Call login endpoint and complete LinkedIn verification
+4. Restart container: `docker compose start backend`
+
+### Build Issues
+
+If you encounter Playwright browser issues:
+```bash
+# Install Playwright browsers
+cd backend
+pwsh bin/Debug/net9.0/playwright.ps1 install
+```
+
+## Architecture
+
+- **Backend**: ASP.NET Core 9.0 with EF Core, Polly resilience, Semantic Kernel
+- **Frontend**: Angular 18 with standalone components, Tailwind CSS
+- **Database**: PostgreSQL with EF Core migrations
+- **Scraping**: Playwright for browser automation
+- **AI**: Semantic Kernel with OpenAI/GPT integration
 
 ## 4. Run Full Stack
 

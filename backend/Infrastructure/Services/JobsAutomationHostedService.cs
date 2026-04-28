@@ -63,10 +63,7 @@ public class JobsAutomationHostedService(
                     query.Location,
                     query.Limit,
                     settings.Providers,
-                    null,
-                    null,
-                    null,
-                    cancellationToken);
+                    cancellationToken: cancellationToken);
 
                 logger.LogInformation(
                     "Hourly jobs scraping done for query={Query}. found={Found}, saved={Saved}",

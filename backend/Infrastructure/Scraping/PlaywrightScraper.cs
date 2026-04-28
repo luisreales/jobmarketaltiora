@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using backend.Application.Contracts;
 using Microsoft.Playwright;
@@ -18,6 +16,61 @@ public sealed class PlaywrightScraper(
             throw new InvalidOperationException("LinkedIn session not found. Login first using /api/auth/login");
         }
 
+        try
+        {
+            return await ScrapeLinkedInInternalAsync(request, storageStatePath, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "LinkedIn scraping failed with exception. Check logs/debug for details.");
+            // Auto-create debug directory for potential screenshots/logs
+            try
+            {
+                var debugDir = "logs/debug";
+                Directory.CreateDirectory(debugDir);
+            }
+            catch (Exception dirEx)
+            {
+                logger.LogWarning(dirEx, "Could not create debug directory for screenshots.");
+            }
+
+            throw;
+        }
+    }
+
+    private async Task<List<RawJobData>> ScrapeLinkedInInternalAsync(SearchRequest request, string storageStatePath, CancellationToken ct)
+    {
+        IPage? debugPage = null;
+        try
+        {
+            return await ScrapeLinkedInCoreAsync(request, storageStatePath, p => debugPage = p, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "LinkedIn scraping failed.");
+            if (debugPage is not null && !debugPage.IsClosed)
+            {
+                try
+                {
+                    var debugDir = "logs/debug";
+                    Directory.CreateDirectory(debugDir);
+                    var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+                    var screenshotPath = Path.Combine(debugDir, $"error_linkedin_{timestamp}.png");
+                    await debugPage.ScreenshotAsync(new PageScreenshotOptions { FullPage = true, Path = screenshotPath });
+                    logger.LogWarning("LinkedIn error screenshot saved to {Path}.", screenshotPath);
+                }
+                catch (Exception ssEx)
+                {
+                    logger.LogWarning(ssEx, "Could not save LinkedIn error screenshot.");
+                }
+            }
+
+            throw;
+        }
+    }
+
+    private async Task<List<RawJobData>> ScrapeLinkedInCoreAsync(SearchRequest request, string storageStatePath, Action<IPage> onPageCreated, CancellationToken ct)
+    {
         var normalizedLocation = string.IsNullOrWhiteSpace(request.Location) ? "Remote" : request.Location.Trim();
         var navigationTimeoutMs = Math.Clamp(configuration.GetValue<int?>("Jobs:Playwright:NavigationTimeoutMs") ?? 30000, 5000, 120000);
         var resultLoadTimeoutMs = Math.Clamp(configuration.GetValue<int?>("Jobs:LinkedIn:DirectScraping:ResultLoadTimeoutMs") ?? 20000, 5000, 120000);
@@ -25,7 +78,7 @@ public sealed class PlaywrightScraper(
         var scrollPauseMs = Math.Clamp(configuration.GetValue<int?>("Jobs:LinkedIn:DirectScraping:ScrollPauseMs") ?? 1200, 200, 10000);
         var clickPauseMs = Math.Clamp(configuration.GetValue<int?>("Jobs:LinkedIn:DirectScraping:ClickPauseMs") ?? 600, 100, 5000);
         var maxScrollAttemptsPerPage = Math.Clamp(configuration.GetValue<int?>("Jobs:LinkedIn:DirectScraping:MaxScrollAttemptsPerPage") ?? 8, 1, 50);
-        var maxPages = Math.Clamp(configuration.GetValue<int?>("Jobs:LinkedIn:DirectScraping:MaxPages") ?? 5, 1, 50);
+        var maxPages = Math.Clamp(configuration.GetValue<int?>("Jobs:LinkedIn:DirectScraping:MaxPages") ?? 20, 1, 100);
         var estimatedJobsPerPage = Math.Clamp(configuration.GetValue<int?>("Jobs:LinkedIn:DirectScraping:EstimatedJobsPerPage") ?? 25, 1, 50);
 
         var requestedStartPage = Math.Clamp(request.StartPage ?? 1, 1, maxPages);
@@ -52,10 +105,24 @@ public sealed class PlaywrightScraper(
         await using var context = await browser.NewContextAsync(new BrowserNewContextOptions
         {
             StorageStatePath = storageStatePath,
-            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Safari/537.36",
+            ViewportSize = new ViewportSize { Width = 1366, Height = 768 },
+            Locale = "en-US",
+            TimezoneId = "America/New_York",
+            ExtraHTTPHeaders = new Dictionary<string, string>
+            {
+                ["Accept-Language"] = "en-US,en;q=0.9",
+                ["sec-ch-ua"] = "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\", \"Not-A.Brand\";v=\"99\"",
+                ["sec-ch-ua-mobile"] = "?0",
+                ["sec-ch-ua-platform"] = "\"Windows\""
+            }
         });
 
+        // Mask navigator.webdriver to reduce bot fingerprinting
+        await context.AddInitScriptAsync("Object.defineProperty(navigator,'webdriver',{get:()=>undefined})");
+
         var page = await context.NewPageAsync();
+        onPageCreated(page);
         page.SetDefaultNavigationTimeout(navigationTimeoutMs);
 
         await page.GotoAsync(BuildLinkedInJobsSearchUrl(request.Query, normalizedLocation), new PageGotoOptions
@@ -70,6 +137,9 @@ public sealed class PlaywrightScraper(
 
         await ApplyLinkedInSearchInputAsync(page, request.Query, clickPauseMs);
         await WaitForLinkedInSearchPageAsync(page, resultLoadTimeoutMs);
+        await DismissLinkedInModalsAsync(page);
+        // Give React time to mount job cards after navigation
+        await page.WaitForTimeoutAsync(2500);
 
         var currentPage = 1;
         while (currentPage < requestedStartPage)
@@ -89,6 +159,21 @@ public sealed class PlaywrightScraper(
         while (currentPage <= requestedEndPage && resultsByUrl.Count < targetCount)
         {
             ct.ThrowIfCancellationRequested();
+
+            var pageState = await CheckLinkedInPageStateAsync(page);
+            if (pageState == LinkedInPageState.AuthRequired)
+                throw new InvalidOperationException("LinkedIn session expired mid-scrape. Re-authenticate with POST /api/auth/login.");
+            if (pageState == LinkedInPageState.BotDetected)
+            {
+                logger.LogWarning("LinkedIn bot detection triggered on page {Page}. Stopping scrape with {Count} results.", currentPage, resultsByUrl.Count);
+                break;
+            }
+            if (pageState == LinkedInPageState.NoResults)
+            {
+                logger.LogInformation("LinkedIn returned no results on page {Page}. Stopping.", currentPage);
+                break;
+            }
+
             await WaitForLinkedInResultsReadyAsync(page, resultLoadTimeoutMs);
             await ClickFirstLinkedInResultAsync(page, clickPauseMs, detailLoadTimeoutMs);
 
@@ -130,7 +215,7 @@ public sealed class PlaywrightScraper(
                         item,
                         ".job-card-container__metadata-wrapper li span, .artdeco-entity-lockup__caption span");
 
-                    await clickable.ClickAsync();
+                    await clickable.DispatchEventAsync("click");
                     await page.WaitForTimeoutAsync(clickPauseMs);
 
                     var details = await ExtractLinkedInJobDetailsAsync(page, detailLoadTimeoutMs);
@@ -215,7 +300,7 @@ public sealed class PlaywrightScraper(
     {
         var targetCount = Math.Clamp(request.Limit, 1, 100);
         var maxPagesFromLimit = (int)Math.Ceiling(targetCount / 10d);
-        var maxPagesFromConfig = Math.Clamp(configuration.GetValue<int?>("Jobs:Playwright:MaxPagesPerSearch") ?? 5, 1, 20);
+        var maxPagesFromConfig = Math.Clamp(configuration.GetValue<int?>("Jobs:Playwright:MaxPagesPerSearch") ?? 20, 1, 100);
         var maxPages = Math.Min(maxPagesFromLimit, maxPagesFromConfig);
 
         var navigationTimeoutMs = Math.Clamp(configuration.GetValue<int?>("Jobs:Playwright:NavigationTimeoutMs") ?? 30000, 5000, 120000);
@@ -582,7 +667,8 @@ public sealed class PlaywrightScraper(
             throw new InvalidOperationException("LinkedIn first job item was not found in results list.");
         }
 
-        await firstLink.ClickAsync();
+        // Use JS dispatch to bypass scaffold-layout__list pointer-events interception
+        await firstLink.DispatchEventAsync("click");
         await page.WaitForTimeoutAsync(clickPauseMs);
 
         var wrapper = page.Locator(".jobs-search__job-details--wrapper").First;
@@ -593,25 +679,151 @@ public sealed class PlaywrightScraper(
         });
     }
 
-    private static async Task WaitForLinkedInResultsReadyAsync(IPage page, int timeoutMs)
+    // Ordered by specificity — first match wins. LinkedIn A/B tests the DOM so we need fallbacks.
+    private static readonly string[] JobCardSelectors =
+    [
+        "li[data-occludable-job-id]",
+        "li[data-entity-urn*='jobPosting']",
+        "li.jobs-search-results__list-item",
+        "li.job-card-container",
+        "div.job-card-container"
+    ];
+
+    private async Task WaitForLinkedInResultsReadyAsync(IPage page, int timeoutMs)
     {
-        await page.WaitForSelectorAsync("div[data-results-list-top-scroll-sentinel]", new PageWaitForSelectorOptions
+        // Validate page state before waiting — catches silent redirects and soft blocks
+        var state = await CheckLinkedInPageStateAsync(page);
+        switch (state)
         {
-            Timeout = timeoutMs,
-            State = WaitForSelectorState.Attached
-        });
+            case LinkedInPageState.AuthRequired:
+                throw new InvalidOperationException("LinkedIn session expired. Re-authenticate with POST /api/auth/login.");
+            case LinkedInPageState.BotDetected:
+                throw new InvalidOperationException("LinkedIn bot detection triggered. Slow down or rotate session.");
+            case LinkedInPageState.NoResults:
+                logger.LogInformation("LinkedIn page has no results (no-results state detected before card wait).");
+                return;
+        }
 
-        await page.WaitForSelectorAsync("li[data-occludable-job-id]", new PageWaitForSelectorOptions
-        {
-            Timeout = timeoutMs,
-            State = WaitForSelectorState.Attached
-        });
+        await DismissLinkedInModalsAsync(page);
 
-        await page.WaitForSelectorAsync("li[data-occludable-job-id] a[href*='/jobs/view/']", new PageWaitForSelectorOptions
+        // Give each selector a generous individual budget — first match wins early
+        var perSelectorBudget = Math.Max(5000, timeoutMs);
+        string? matchedSelector = null;
+
+        foreach (var selector in JobCardSelectors)
         {
-            Timeout = timeoutMs,
-            State = WaitForSelectorState.Attached
-        });
+            try
+            {
+                await page.WaitForSelectorAsync(selector, new PageWaitForSelectorOptions
+                {
+                    Timeout = perSelectorBudget,
+                    State = WaitForSelectorState.Attached
+                });
+                matchedSelector = selector;
+                logger.LogDebug("LinkedIn job cards matched selector: {Selector}", selector);
+                break;
+            }
+            catch (TimeoutException)
+            {
+                logger.LogDebug("LinkedIn selector not found within budget, trying next: {Selector}", selector);
+            }
+        }
+
+        if (matchedSelector is null)
+        {
+            // One last page-state check — maybe a soft block rendered after the initial check
+            var lateState = await CheckLinkedInPageStateAsync(page);
+            var reason = lateState switch
+            {
+                LinkedInPageState.AuthRequired => "session expired",
+                LinkedInPageState.BotDetected => "bot detection triggered",
+                LinkedInPageState.NoResults => "no results on this page",
+                _ => "unknown — selector may have changed or page is empty"
+            };
+            throw new TimeoutException($"No LinkedIn job card selector matched after {timeoutMs}ms: {reason}. URL={page.Url}");
+        }
+
+        // Wait for at least one clickable job link within the matched cards
+        try
+        {
+            await page.WaitForSelectorAsync($"{matchedSelector} a[href*='/jobs/view/']", new PageWaitForSelectorOptions
+            {
+                Timeout = perSelectorBudget,
+                State = WaitForSelectorState.Attached
+            });
+        }
+        catch (TimeoutException)
+        {
+            // Cards present but no job links — cards may still be lazy-loading. Continue anyway.
+            logger.LogWarning("LinkedIn job cards found ({Selector}) but no job links within them yet. Continuing.", matchedSelector);
+        }
+    }
+
+    private static async Task DismissLinkedInModalsAsync(IPage page)
+    {
+        // Cookie consent banner
+        var cookieBtn = page.Locator("button[action-type='ACCEPT'], button:has-text('Accept'), button:has-text('Accept cookies')").First;
+        if (await cookieBtn.CountAsync() > 0 && await cookieBtn.IsVisibleAsync())
+        {
+            await cookieBtn.ClickAsync().ConfigureAwait(false);
+            await page.WaitForTimeoutAsync(500);
+        }
+
+        // "Sign in to continue" or generic dismissible modal
+        var dismissBtn = page.Locator("button[data-tracking-control-name='public_jobs_dismiss-auth-modal'], button.modal__dismiss, button[aria-label='Dismiss']").First;
+        if (await dismissBtn.CountAsync() > 0 && await dismissBtn.IsVisibleAsync())
+        {
+            await dismissBtn.ClickAsync().ConfigureAwait(false);
+            await page.WaitForTimeoutAsync(500);
+        }
+    }
+
+    private enum LinkedInPageState { Ok, AuthRequired, BotDetected, NoResults }
+
+    private async Task<LinkedInPageState> CheckLinkedInPageStateAsync(IPage page)
+    {
+        var url = page.Url.ToLowerInvariant();
+
+        // Hard auth redirects — URL is definitive
+        if (url.Contains("/login", StringComparison.Ordinal) ||
+            url.Contains("/checkpoint", StringComparison.Ordinal) ||
+            url.Contains("/authwall", StringComparison.Ordinal) ||
+            url.Contains("join-linkedin", StringComparison.Ordinal))
+        {
+            logger.LogWarning("LinkedIn auth redirect detected: {Url}", page.Url);
+            return LinkedInPageState.AuthRequired;
+        }
+
+        // If URL is a valid jobs search page, trust it — skip expensive content scan
+        if (url.Contains("/jobs/search", StringComparison.Ordinal))
+        {
+            return LinkedInPageState.Ok;
+        }
+
+        // For non-jobs URLs, check DOM for actual CAPTCHA elements (not raw HTML text)
+        try
+        {
+            var captchaFrame = await page.Locator("iframe[src*='captcha'], iframe[title*='captcha' i], #captcha-challenge").CountAsync();
+            if (captchaFrame > 0)
+            {
+                logger.LogWarning("LinkedIn CAPTCHA iframe detected at {Url}", page.Url);
+                return LinkedInPageState.BotDetected;
+            }
+
+            // Soft auth wall rendered by React (no URL change)
+            var authWallHeading = await page.Locator("h1:has-text('Join now'), h2:has-text('Join now'), [data-test-id='auth-wall']").CountAsync();
+            if (authWallHeading > 0)
+            {
+                logger.LogWarning("LinkedIn soft auth wall DOM element detected at {Url}", page.Url);
+                return LinkedInPageState.AuthRequired;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not check LinkedIn DOM state at {Url}", page.Url);
+        }
+
+        return LinkedInPageState.Ok;
     }
 
     private static async Task ScrollLinkedInResultsAsync(IPage page, int scrollPauseMs)
@@ -641,7 +853,19 @@ public sealed class PlaywrightScraper(
             return false;
         }
 
+        var urlBefore = page.Url;
+
         await nextButton.ClickAsync();
+
+        // Wait for URL to change (confirms navigation started) or fall back to fixed delay
+        var navigationDeadline = DateTime.UtcNow.AddMilliseconds(clickPauseMs * 5);
+        while (DateTime.UtcNow < navigationDeadline && page.Url == urlBefore)
+        {
+            await page.WaitForTimeoutAsync(150);
+        }
+
+        // Let the new page DOM settle before querying job cards
+        await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
         await page.WaitForTimeoutAsync(clickPauseMs);
         return true;
     }
@@ -864,12 +1088,6 @@ public sealed class PlaywrightScraper(
         }
 
         return JsonSerializer.Deserialize<List<GoogleSearchResult>>(json) ?? [];
-    }
-
-    private static string ComputeShortHash(string raw)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
-        return Convert.ToHexString(bytes)[..10].ToLowerInvariant();
     }
 
     private sealed record GoogleSearchResult(string Title, string Url, string? Snippet);

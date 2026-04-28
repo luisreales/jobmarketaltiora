@@ -1,149 +1,47 @@
 <section class="min-h-[100dvh] bg-slate-100 p-4 md:p-8">
   <div class="mx-auto max-w-6xl space-y-6">
 
-    <!-- ── Header ───────────────────────────────────────────────────────────── -->
     <header class="rounded-3xl bg-white p-6 shadow-xl md:p-8">
       <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 class="text-2xl font-extrabold text-slate-900">Product Generator</h1>
+          <h1 class="text-2xl font-extrabold text-slate-900">Products</h1>
           <p class="mt-1 text-sm text-slate-500">
-            Productos listos para vender esta semana — ordenados por oportunidad.
+            Edit product data, attach an image, and export the list as CSV for Excel.
           </p>
         </div>
 
-        <div class="flex flex-col items-end gap-1">
-          <button
-            (click)="triggerGenerate()"
-            [disabled]="generateLoading"
-            class="rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
-            type="button">
-            {{ generateLoading ? 'Generando...' : 'Regenerar productos' }}
-          </button>
-          <span *ngIf="generateResult" class="text-xs text-green-600">{{ generateResult }}</span>
-        </div>
+        <button
+          (click)="exportProducts()"
+          [disabled]="exporting"
+          class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+          type="button">
+          {{ exporting ? 'Exporting...' : '⬇ Export CSV' }}
+        </button>
       </div>
 
-      <!-- KPIs -->
       <div class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p class="text-xs text-slate-500">Total productos</p>
+          <p class="text-xs text-slate-500">Total products</p>
           <p class="text-xl font-bold text-slate-900">{{ totalCount }}</p>
         </article>
-        <article class="rounded-xl border border-blue-100 bg-blue-50 p-3">
-          <p class="text-xs text-blue-700">Top 3 esta semana</p>
-          <p class="text-xl font-bold text-blue-800">{{ topThree.length }}</p>
+        <article class="rounded-xl border border-purple-100 bg-purple-50 p-3">
+          <p class="text-xs text-purple-700">MVP Products</p>
+          <p class="text-xl font-bold text-purple-800">{{ countByType('MVPProduct') }}</p>
         </article>
         <article class="rounded-xl border border-green-100 bg-green-50 p-3">
-          <p class="text-xs text-green-700">Deal potencial top 3</p>
-          <p class="text-xl font-bold text-green-800">{{ totalDealPotential }}</p>
+          <p class="text-xs text-green-700">Quick Wins</p>
+          <p class="text-xl font-bold text-green-800">{{ countByType('QuickWin') }}</p>
         </article>
-        <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p class="text-xs text-slate-500">Días promedio build</p>
-          <p class="text-xl font-bold text-slate-900">{{ avgBuildDays }}d</p>
+        <article class="rounded-xl border border-amber-100 bg-amber-50 p-3">
+          <p class="text-xs text-amber-700">Consulting</p>
+          <p class="text-xl font-bold text-amber-800">{{ countByType('Consulting') }}</p>
         </article>
       </div>
     </header>
 
-    <!-- ── Top 3 — Esta semana atacar ────────────────────────────────────────── -->
-    <section *ngIf="topThree.length > 0">
-      <h2 class="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">
-        Esta semana atacar
-      </h2>
-
-      <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <article
-          *ngFor="let p of topThree; let i = index"
-          class="rounded-2xl border-2 border-blue-200 bg-white p-6 shadow-md">
-
-          <!-- Header: rank + type + industry -->
-          <div class="flex items-center justify-between gap-2">
-            <span class="rounded-full bg-blue-600 px-2.5 py-1 text-xs font-bold text-white">#{{ i + 1 }}</span>
-            <div class="flex items-center gap-1.5">
-              <span
-                [class]="opportunityTypeClass(p.opportunityType)"
-                class="rounded-full px-2 py-0.5 text-xs font-semibold">
-                {{ p.opportunityType }}
-              </span>
-              <span *ngIf="p.industry && p.industry !== 'Unknown'"
-                class="rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
-                {{ p.industry }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Product name -->
-          <h3 class="mt-3 text-base font-extrabold leading-snug text-slate-900">
-            {{ p.productName }}
-          </h3>
-
-          <!-- Tech tokens -->
-          <div class="mt-2 flex flex-wrap gap-1">
-            <span
-              *ngFor="let t of techTokens(p.techFocus)"
-              class="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-slate-200">
-              {{ t }}
-            </span>
-          </div>
-
-          <!-- Why Now -->
-          <div class="mt-4 rounded-lg bg-slate-50 p-3">
-            <p class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Por qué ahora</p>
-            <p class="mt-1 text-xs font-medium text-slate-700">{{ p.whyNow }}</p>
-          </div>
-
-          <!-- Offer (highlighted) -->
-          <div class="mt-2 rounded-lg bg-blue-600 p-3">
-            <p class="text-[10px] font-bold uppercase tracking-wide text-blue-200">La oferta</p>
-            <p class="mt-1 text-sm font-extrabold text-white">{{ p.offer }}</p>
-            <p class="mt-0.5 text-xs text-blue-200">{{ dealRange(p) }}</p>
-          </div>
-
-          <!-- Action Today (green) -->
-          <div class="mt-2 rounded-lg bg-green-50 p-3">
-            <p class="text-[10px] font-bold uppercase tracking-wide text-green-500">Acción hoy</p>
-            <p class="mt-1 text-xs font-semibold text-green-800">{{ p.actionToday }}</p>
-          </div>
-
-          <!-- Metrics row -->
-          <dl class="mt-3 grid grid-cols-3 gap-1 text-center text-xs text-slate-500">
-            <div>
-              <dt>Jobs</dt>
-              <dd class="font-bold text-slate-800">{{ p.totalJobCount }}</dd>
-            </div>
-            <div>
-              <dt>Directo</dt>
-              <dd class="font-bold text-slate-800">{{ p.avgDirectClientRatio | percent:'1.0-0' }}</dd>
-            </div>
-            <div>
-              <dt>Urgencia</dt>
-              <dd [class]="urgencyClass(p.avgUrgencyScore)" class="font-bold">{{ urgencyLabel(p.avgUrgencyScore) }}</dd>
-            </div>
-          </dl>
-
-          <!-- Action buttons -->
-          <div class="mt-4 flex gap-2">
-            <a
-              routerLink="/opportunities"
-              class="flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-center text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
-              Ver leads
-            </a>
-            <a
-              [routerLink]="['/products', p.id]"
-              class="flex-1 rounded-lg bg-violet-600 px-2 py-1.5 text-center text-xs font-semibold text-white transition hover:bg-violet-700">
-              ✨ Detalle del Producto
-            </a>
-          </div>
-
-        </article>
-      </div>
-    </section>
-
-    <!-- ── Filters ───────────────────────────────────────────────────────────── -->
     <div class="rounded-2xl bg-white p-4 shadow-sm">
       <div class="flex flex-wrap items-end gap-3">
-
-        <!-- Search -->
-        <div class="relative flex-1 min-w-[200px]">
+        <div class="relative min-w-[220px] flex-1">
           <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -153,30 +51,32 @@
           <input
             [(ngModel)]="searchTerm"
             class="w-full rounded-xl border border-slate-300 py-2 pl-9 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-            placeholder="Buscar por nombre, tech, industria..."
+            placeholder="Search by name, tech, industry..."
             type="text" />
-          <button
-            *ngIf="searchTerm"
-            (click)="clearSearch()"
-            class="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600"
-            type="button">
-            ✕
-          </button>
+          @if (searchTerm) {
+            <button
+              (click)="clearSearch()"
+              class="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600"
+              type="button">
+              ✕
+            </button>
+          }
         </div>
 
         <select
           [(ngModel)]="filterOpportunityType"
           class="rounded-xl border border-slate-300 px-3 py-2 text-sm">
-          <option value="">Todos los tipos</option>
+          <option value="">All types</option>
           <option value="MVPProduct">MVPProduct</option>
           <option value="QuickWin">QuickWin</option>
           <option value="Consulting">Consulting</option>
+          <option value="Manual">Manual</option>
         </select>
 
         <select
           [(ngModel)]="filterIndustry"
           class="rounded-xl border border-slate-300 px-3 py-2 text-sm">
-          <option value="">Todas las industrias</option>
+          <option value="">All industries</option>
           <option value="Fintech">Fintech</option>
           <option value="Health">Health</option>
           <option value="Ecommerce">Ecommerce</option>
@@ -189,109 +89,313 @@
           (click)="applyFilters()"
           class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white"
           type="button">
-          Aplicar
+          Apply
         </button>
       </div>
     </div>
 
-    <!-- ── Resto de productos ─────────────────────────────────────────────────── -->
-    <section *ngIf="restProducts.length > 0 || (!loading && products.length === 0)">
-      <div class="mb-3 flex items-center justify-between">
-        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">
-          Todos los productos ({{ totalCount }})
-        </h2>
-        <p *ngIf="loading" class="text-sm text-slate-400">Cargando...</p>
-      </div>
+    <section>
+      @if (loading) {
+        <div class="py-12 text-center text-sm text-slate-400">Loading products...</div>
+      }
 
-      <!-- Empty state -->
-      <div *ngIf="!loading && products.length === 0" class="mt-6 text-center">
-        <p class="text-sm text-slate-500">
-          Sin productos. Ejecuta <strong>Rebuild clusters</strong> en la página Opportunities
-          y luego <strong>Regenerar productos</strong> aquí.
-        </p>
-      </div>
+      @if (!loading && filteredProducts.length === 0) {
+        <div class="rounded-2xl bg-white p-10 text-center shadow-sm">
+          <p class="text-sm font-semibold text-slate-600">No products yet.</p>
+          <p class="mt-1 text-xs text-slate-400">
+            Create products from the
+            <a routerLink="/opportunities" class="text-blue-600 hover:underline">Sales Pipeline</a>.
+          </p>
+        </div>
+      }
 
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <article
-          *ngFor="let p of restProducts"
-          class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
-
-          <!-- Header -->
-          <div class="flex items-center justify-between gap-2">
-            <span class="text-xs font-bold text-slate-400">#{{ p.priorityScore }}</span>
-            <div class="flex items-center gap-1.5">
-              <span
-                [class]="opportunityTypeClass(p.opportunityType)"
-                class="rounded-full px-2 py-0.5 text-xs font-semibold">
-                {{ p.opportunityType }}
-              </span>
-              <span *ngIf="p.industry && p.industry !== 'Unknown'"
-                class="rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
-                {{ p.industry }}
-              </span>
-            </div>
+      @if (!loading && filteredProducts.length > 0) {
+        <div class="overflow-hidden rounded-2xl bg-white shadow-sm">
+          <div class="hidden grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto_auto_auto] gap-4 border-b border-slate-100 bg-slate-50 px-5 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-400 md:grid">
+            <span>Product</span>
+            <span>Type</span>
+            <span>Offer / Deal</span>
+            <span class="text-center">Companies</span>
+            <span class="text-center">Direct</span>
+            <span class="text-center">Urgency</span>
+            <span></span>
+            <span></span>
+            <span></span>
           </div>
 
-          <!-- Name + tech -->
-          <h3 class="mt-2 text-sm font-bold text-slate-900">{{ p.productName }}</h3>
-          <div class="mt-1.5 flex flex-wrap gap-1">
-            <span
-              *ngFor="let t of techTokens(p.techFocus)"
-              class="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-slate-200">
-              {{ t }}
-            </span>
-          </div>
-
-          <!-- WhyNow -->
-          <p class="mt-2 text-xs text-slate-500">{{ p.whyNow }}</p>
-
-          <!-- Offer pill -->
-          <div class="mt-2 inline-flex rounded-lg bg-blue-50 px-3 py-1.5">
-            <p class="text-xs font-bold text-blue-700">{{ p.offer }} · {{ dealRange(p) }}</p>
-          </div>
-
-          <!-- Build days + metrics -->
-          <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
-            <span>{{ p.estimatedBuildDays }} días build</span>
-            <span>{{ p.totalJobCount }} empresas · {{ p.avgDirectClientRatio | percent:'1.0-0' }} directo</span>
-          </div>
-
-          <!-- Buttons -->
-          <div class="mt-3 flex items-center gap-2">
-            <a
-              routerLink="/opportunities"
-              class="text-xs font-semibold text-slate-500 hover:underline">
-              Ver leads →
-            </a>
+          @for (p of filteredProducts; track p.id; let odd = $odd) {
             <a
               [routerLink]="['/products', p.id]"
-              class="ml-auto rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-violet-700">
-              ✨ Detalle
+              [class.bg-slate-50]="odd"
+              class="grid cursor-pointer grid-cols-1 gap-2 border-b border-slate-100 px-5 py-4 transition hover:bg-blue-50 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto_auto_auto] md:items-center md:gap-4">
+
+              <div class="flex items-start gap-3">
+                <button
+                  (click)="openImagePreview(p, $event)"
+                  [disabled]="!p.imageUrl"
+                  class="group flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 transition hover:border-blue-300 hover:shadow-sm disabled:cursor-default"
+                  type="button">
+                  @if (p.imageUrl) {
+                    <img [src]="resolveImageUrl(p.imageUrl)" alt="Product image" class="h-full w-full object-cover transition group-hover:scale-105" />
+                  } @else {
+                    <span class="text-lg text-slate-300">🖼️</span>
+                  }
+                </button>
+
+                <div>
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="text-sm font-bold text-slate-900">{{ p.productName }}</span>
+                    @if (p.industry && p.industry !== 'Unknown') {
+                      <span class="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600">
+                        {{ p.industry }}
+                      </span>
+                    }
+                  </div>
+                  <div class="mt-1 flex flex-wrap gap-1">
+                    @for (t of techTokens(p.techFocus); track t) {
+                      <span class="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-slate-200">
+                        {{ t }}
+                      </span>
+                    }
+                  </div>
+                  <p class="mt-1 line-clamp-1 text-xs text-slate-400">{{ p.whyNow }}</p>
+                  <p class="mt-1 text-[10px] text-slate-400">
+                    {{ p.imageUrl ? 'Image URL saved' : 'No image URL yet' }}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <span
+                  [class]="opportunityTypeClass(p.opportunityType)"
+                  class="rounded-full px-2 py-0.5 text-xs font-semibold">
+                  {{ p.opportunityType }}
+                </span>
+              </div>
+
+              <div>
+                <p class="text-xs font-semibold text-blue-700">{{ p.offer }}</p>
+                <p class="mt-0.5 text-xs text-slate-500">{{ dealRange(p) }}</p>
+                <p class="mt-0.5 text-[10px] text-slate-400">{{ p.estimatedBuildDays }}d build</p>
+              </div>
+
+              <div class="text-center">
+                <p class="text-base font-bold text-slate-800">{{ p.totalJobCount }}</p>
+                <p class="text-[10px] text-slate-400">companies</p>
+              </div>
+
+              <div class="text-center">
+                <p class="text-base font-bold text-green-700">{{ p.avgDirectClientRatio | percent:'1.0-0' }}</p>
+                <p class="text-[10px] text-slate-400">direct</p>
+              </div>
+
+              <div class="text-center">
+                <p [class]="urgencyClass(p.avgUrgencyScore)" class="text-base font-bold">
+                  {{ urgencyLabel(p.avgUrgencyScore) }}
+                </p>
+                <p class="text-[10px] text-slate-400">{{ p.avgUrgencyScore.toFixed(1) }}/10</p>
+              </div>
+
+              <div>
+                <span class="whitespace-nowrap rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white">
+                  View →
+                </span>
+              </div>
+
+              <div>
+                <button
+                  (click)="openEdit(p, $event)"
+                  class="whitespace-nowrap rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                  type="button">
+                  ✎ Edit
+                </button>
+              </div>
+
+              <div>
+                @if (deletingProductIds.has(p.id)) {
+                  <span class="whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-400">
+                    ...
+                  </span>
+                } @else {
+                  <button
+                    (click)="deleteProduct(p.id, $event)"
+                    class="whitespace-nowrap rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                    type="button">
+                    − Delete
+                  </button>
+                }
+              </div>
             </a>
+          }
+        </div>
+
+        @if (totalPages > 1) {
+          <div class="mt-4 flex items-center justify-between">
+            <button
+              (click)="prevPage()"
+              [disabled]="page <= 1"
+              class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
+              type="button">
+              ← Prev
+            </button>
+            <span class="text-sm text-slate-500">Page {{ page }} / {{ totalPages }}</span>
+            <button
+              (click)="nextPage()"
+              [disabled]="page >= totalPages"
+              class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
+              type="button">
+              Next →
+            </button>
           </div>
-
-        </article>
-      </div>
-
-      <!-- Pagination -->
-      <div class="mt-5 flex items-center justify-between">
-        <button
-          (click)="prevPage()"
-          [disabled]="page <= 1 || loading"
-          class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
-          type="button">
-          Prev
-        </button>
-        <span class="text-sm text-slate-500">Página {{ page }} / {{ totalPages }}</span>
-        <button
-          (click)="nextPage()"
-          [disabled]="page >= totalPages || loading"
-          class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
-          type="button">
-          Next
-        </button>
-      </div>
+        }
+      }
     </section>
-
   </div>
 </section>
+
+@if (selectedPopupImageUrl) {
+  <div
+    (click)="closeImagePreview()"
+    class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+    <div
+      (click)="$event.stopPropagation()"
+      class="relative flex max-h-[92vh] w-full max-w-5xl items-center justify-center rounded-3xl bg-white p-3 shadow-2xl md:p-4">
+      <button
+        (click)="closeImagePreview()"
+        class="absolute right-3 top-3 rounded-full bg-slate-900/80 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+        type="button">
+        ✕
+      </button>
+
+      <img
+        [src]="selectedPopupImageUrl"
+        [alt]="selectedPopupProductName || 'Product image preview'"
+        class="max-h-[82vh] w-auto max-w-full rounded-2xl object-contain" />
+    </div>
+  </div>
+}
+
+@if (editingProduct) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+    <div class="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl md:p-8">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Edit product</h2>
+          <p class="mt-1 text-sm text-slate-500">Update the product information and image URL.</p>
+        </div>
+        <button (click)="closeEdit()" class="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" type="button">✕</button>
+      </div>
+
+      <div class="mt-6 grid gap-4 md:grid-cols-2">
+        <label class="block text-sm">
+          <span class="mb-1 block font-medium text-slate-700">Product name</span>
+          <input [(ngModel)]="editModel.productName" class="w-full rounded-xl border border-slate-300 px-3 py-2" type="text" />
+        </label>
+
+        <label class="block text-sm">
+          <span class="mb-1 block font-medium text-slate-700">Industry</span>
+          <input [(ngModel)]="editModel.industry" class="w-full rounded-xl border border-slate-300 px-3 py-2" type="text" />
+        </label>
+
+        <label class="block text-sm md:col-span-2">
+          <span class="mb-1 block font-medium text-slate-700">Description</span>
+          <textarea [(ngModel)]="editModel.productDescription" class="min-h-24 w-full rounded-xl border border-slate-300 px-3 py-2"></textarea>
+        </label>
+
+        <label class="block text-sm md:col-span-2">
+          <span class="mb-1 block font-medium text-slate-700">Why now</span>
+          <textarea [(ngModel)]="editModel.whyNow" class="min-h-20 w-full rounded-xl border border-slate-300 px-3 py-2"></textarea>
+        </label>
+
+        <label class="block text-sm">
+          <span class="mb-1 block font-medium text-slate-700">Offer</span>
+          <input [(ngModel)]="editModel.offer" class="w-full rounded-xl border border-slate-300 px-3 py-2" type="text" />
+        </label>
+
+        <label class="block text-sm">
+          <span class="mb-1 block font-medium text-slate-700">Action today</span>
+          <input [(ngModel)]="editModel.actionToday" class="w-full rounded-xl border border-slate-300 px-3 py-2" type="text" />
+        </label>
+
+        <label class="block text-sm md:col-span-2">
+          <span class="mb-1 block font-medium text-slate-700">Tech focus</span>
+          <input [(ngModel)]="editModel.techFocus" class="w-full rounded-xl border border-slate-300 px-3 py-2" type="text" />
+        </label>
+
+        <label class="block text-sm">
+          <span class="mb-1 block font-medium text-slate-700">Build days</span>
+          <input [(ngModel)]="editModel.estimatedBuildDays" class="w-full rounded-xl border border-slate-300 px-3 py-2" type="number" min="0" />
+        </label>
+
+        <label class="block text-sm">
+          <span class="mb-1 block font-medium text-slate-700">Opportunity type</span>
+          <select [(ngModel)]="editModel.opportunityType" class="w-full rounded-xl border border-slate-300 px-3 py-2">
+            <option value="Manual">Manual</option>
+            <option value="MVPProduct">MVPProduct</option>
+            <option value="QuickWin">QuickWin</option>
+            <option value="Consulting">Consulting</option>
+          </select>
+        </label>
+
+        <label class="block text-sm">
+          <span class="mb-1 block font-medium text-slate-700">Min deal (USD)</span>
+          <input [(ngModel)]="editModel.minDealSizeUsd" class="w-full rounded-xl border border-slate-300 px-3 py-2" type="number" min="0" />
+        </label>
+
+        <label class="block text-sm">
+          <span class="mb-1 block font-medium text-slate-700">Max deal (USD)</span>
+          <input [(ngModel)]="editModel.maxDealSizeUsd" class="w-full rounded-xl border border-slate-300 px-3 py-2" type="number" min="0" />
+        </label>
+
+        <label class="block text-sm">
+          <span class="mb-1 block font-medium text-slate-700">Status</span>
+          <select [(ngModel)]="editModel.status" class="w-full rounded-xl border border-slate-300 px-3 py-2">
+            <option value="open">open</option>
+            <option value="closed">closed</option>
+          </select>
+        </label>
+
+        <div class="block text-sm">
+          <span class="mb-1 block font-medium text-slate-700">Product image</span>
+          <input
+            [(ngModel)]="editModel.imageUrl"
+            (ngModelChange)="onImageUrlChanged()"
+            class="mb-2 w-full rounded-xl border border-slate-300 px-3 py-2"
+            placeholder="Paste image URL or upload a file below"
+            type="text" />
+          <input (change)="onImageSelected($event)" accept="image/*" class="w-full text-sm text-slate-500" type="file" />
+        </div>
+
+        <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Preview</p>
+          <div class="mt-3 flex h-40 items-center justify-center overflow-hidden rounded-xl bg-white">
+            @if (imagePreviewUrl) {
+              <img [src]="imagePreviewUrl" alt="Preview" class="h-full w-full object-cover" />
+            } @else {
+              <span class="text-sm text-slate-400">No image selected</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      @if (editError) {
+        <div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {{ editError }}
+        </div>
+      }
+
+      <div class="mt-6 flex justify-end gap-3">
+        <button (click)="closeEdit()" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700" type="button">
+          Cancel
+        </button>
+        <button
+          (click)="saveEdit()"
+          [disabled]="savingEdit"
+          class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          type="button">
+          {{ savingEdit ? 'Saving...' : 'Save changes' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

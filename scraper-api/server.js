@@ -169,7 +169,7 @@ async function waitForManualLoginCompletion(page, timeoutSeconds) {
   return false;
 }
 
-async function newBrowserSession() {
+async function newBrowserSession(headless = UPWORK_HEADLESS) {
   const launchArgs = IS_CONTAINER
     ? [
       "--no-sandbox",
@@ -178,8 +178,11 @@ async function newBrowserSession() {
     ]
     : [];
 
+  // Visible Chrome only works outside Docker (no X11 display in containers)
+  const effectiveHeadless = IS_CONTAINER ? true : headless;
+
   return connect({
-    headless: UPWORK_HEADLESS,
+    headless: effectiveHeadless,
     args: launchArgs
   });
 }
@@ -204,11 +207,14 @@ app.post("/upwork/login", async (req, res) => {
     return res.status(400).json({ error: "username and password are required" });
   }
 
+  const showBrowser = Boolean(req.body?.showBrowser);
+  const headless = showBrowser ? false : UPWORK_HEADLESS;
+
   let browser;
   let page;
 
   try {
-    const browserSession = await newBrowserSession();
+    const browserSession = await newBrowserSession(headless);
     browser = browserSession.browser;
     page = browserSession.page;
 
@@ -218,7 +224,7 @@ app.post("/upwork/login", async (req, res) => {
     });
 
     if (UPWORK_FORCE_MANUAL_LOGIN) {
-      if (UPWORK_HEADLESS) {
+      if (headless) {
         return res.status(409).json({
           error: "UPWORK_FORCE_MANUAL_LOGIN requires UPWORK_HEADLESS=false so you can interact with the browser window."
         });
@@ -242,64 +248,78 @@ app.post("/upwork/login", async (req, res) => {
       });
     }
 
-    await page.waitForSelector("input#login_username, input[name='login[username]']", {
-      timeout: 45000
-    });
-    await page.type("input#login_username, input[name='login[username]']", username, { delay: 25 });
+    let isAuthenticated = false;
 
-    const continueSelector = "button#login_password_continue, button[button-role='continue'], button[data-ev-label='Continue']";
-    if (await page.$(continueSelector)) {
-      await page.click(continueSelector);
-    } else {
-      await page.keyboard.press("Enter");
-    }
+    try {
+      const usernameSelector = "input#login_username, input[name='login[username]']";
+      await page.waitForSelector(usernameSelector, { timeout: 45000, visible: true });
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      await page.click(usernameSelector);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await page.type(usernameSelector, username, { delay: 60 });
 
-    await page.waitForSelector("input#login_password, input[name='password'], input[name='login[password]']", {
-      timeout: 45000
-    });
-    await page.type("input#login_password, input[name='password'], input[name='login[password]']", password, { delay: 25 });
-
-    const submitSelector = "button#login_control_continue, button[type='submit']";
-    await page.click(submitSelector);
-
-    await page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => null);
-    await page.goto("https://www.upwork.com/nx/find-work/best-matches", {
-      waitUntil: "domcontentloaded",
-      timeout: 60000
-    });
-
-    const currentUrl = (page.url() || "").toLowerCase();
-    let isAuthenticated = isUpworkAuthenticatedUrl(currentUrl);
-
-    if (!isAuthenticated) {
-      const html = (await page.content()).toLowerCase();
-      if (html.includes("captcha") || html.includes("cloudflare") || html.includes("forbidden")) {
-        if (UPWORK_HEADLESS) {
-          return res.status(409).json({
-            error: "Upwork challenge/block detected during login. Set UPWORK_HEADLESS=false and complete login manually in a real browser session."
-          });
-        }
-
-        const solved = await waitForManualLoginCompletion(page, MANUAL_LOGIN_TIMEOUT_SECONDS);
-        if (!solved) {
-          return res.status(408).json({ error: "Manual Upwork login was not completed before timeout." });
-        }
-
-        isAuthenticated = true;
+      const continueSelector = "button#login_password_continue, button[button-role='continue'], button[data-ev-label='Continue']";
+      try {
+        await page.waitForSelector(continueSelector, { timeout: 5000, visible: true });
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await page.click(continueSelector);
+      } catch {
+        await page.keyboard.press("Enter");
       }
+
+      const passwordSelector = "input#login_password, input[name='password'], input[name='login[password]']";
+      await page.waitForSelector(passwordSelector, { timeout: 45000, visible: true });
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      await page.click(passwordSelector);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await page.type(passwordSelector, password, { delay: 60 });
+
+      const submitSelector = "button#login_control_continue, button[type='submit']";
+      await page.waitForSelector(submitSelector, { timeout: 10000, visible: true });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await page.click(submitSelector);
+
+      await page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => null);
+      await page.goto("https://www.upwork.com/nx/find-work/best-matches", {
+        waitUntil: "domcontentloaded",
+        timeout: 60000
+      });
+
+      isAuthenticated = isUpworkAuthenticatedUrl(page.url() || "");
 
       if (!isAuthenticated) {
-        if (UPWORK_HEADLESS) {
-          return res.status(401).json({ error: "Upwork login failed in headless mode." });
+        const html = (await page.content()).toLowerCase();
+        if (html.includes("captcha") || html.includes("cloudflare") || html.includes("forbidden")) {
+          if (headless) {
+            return res.status(409).json({
+              error: "Upwork challenge/block detected during login. Enable showBrowser to complete login manually."
+            });
+          }
+          const solved = await waitForManualLoginCompletion(page, MANUAL_LOGIN_TIMEOUT_SECONDS);
+          if (!solved) {
+            return res.status(408).json({ error: "Manual Upwork login was not completed before timeout." });
+          }
+          isAuthenticated = true;
         }
-
-        const solved = await waitForManualLoginCompletion(page, MANUAL_LOGIN_TIMEOUT_SECONDS);
-        if (!solved) {
-          return res.status(408).json({ error: "Manual Upwork login was not completed before timeout." });
-        }
-
-        isAuthenticated = true;
       }
+    } catch (autoLoginError) {
+      // Automated login failed (e.g. Google OAuth redirect, element not clickable).
+      // If browser is visible, let the user complete login manually.
+      if (headless) {
+        throw autoLoginError;
+      }
+      console.log("Automated Upwork login failed, waiting for manual completion:", autoLoginError?.message);
+    }
+
+    if (!isAuthenticated) {
+      if (headless) {
+        return res.status(401).json({ error: "Upwork login failed in headless mode." });
+      }
+      const solved = await waitForManualLoginCompletion(page, MANUAL_LOGIN_TIMEOUT_SECONDS);
+      if (!solved) {
+        return res.status(408).json({ error: "Manual Upwork login was not completed before timeout." });
+      }
+      isAuthenticated = true;
     }
 
     sessionCookies = await page.cookies();
@@ -325,11 +345,15 @@ app.post("/upwork/login", async (req, res) => {
 app.post("/upwork/scrape", async (req, res) => {
   const query = ensureString(req.body?.query);
   const location = ensureString(req.body?.location) || "Remote";
-  const limit = Math.max(1, Math.min(Number(req.body?.limit || 20), 5000));
-  const maxPages = 5;
-  const startPage = Math.max(1, Math.min(Number(req.body?.startPage || 1), maxPages));
+  const startPage = Math.max(1, Number(req.body?.startPage || 1));
   const endPageRequest = Number(req.body?.endPage || startPage);
-  const endPage = Math.max(startPage, Math.min(endPageRequest, maxPages));
+  const endPage = Math.max(startPage, Math.min(endPageRequest, 200));
+  const pageCount = endPage - startPage + 1;
+  const requestedLimit = Number(req.body?.limit || 20);
+  // If endPage spans multiple pages, ensure limit doesn't stop the loop early
+  const limit = Math.max(requestedLimit, pageCount * 10);
+  const showBrowser = Boolean(req.body?.showBrowser);
+  const headless = showBrowser ? false : UPWORK_HEADLESS;
 
   if (!query) {
     return res.status(400).json({ error: "query is required" });
@@ -347,7 +371,7 @@ app.post("/upwork/scrape", async (req, res) => {
   let page;
 
   try {
-    const browserSession = await newBrowserSession();
+    const browserSession = await newBrowserSession(headless);
     browser = browserSession.browser;
     page = browserSession.page;
 
@@ -365,7 +389,7 @@ app.post("/upwork/scrape", async (req, res) => {
 
       const currentUrl = (page.url() || "").toLowerCase();
       if (currentUrl.includes("/login") || currentUrl.includes("account-security")) {
-        if (UPWORK_HEADLESS) {
+        if (headless) {
           clearSessionState();
           return res.status(409).json({ error: "Upwork session expired during scrape." });
         }
@@ -387,7 +411,7 @@ app.post("/upwork/scrape", async (req, res) => {
 
       const pageHtml = (await page.content()).toLowerCase();
       if (pageHtml.includes("captcha") || pageHtml.includes("cloudflare") || pageHtml.includes("access denied")) {
-        if (UPWORK_HEADLESS) {
+        if (headless) {
           return res.status(409).json({ error: "Upwork challenge/block detected during scrape in headless mode." });
         }
 

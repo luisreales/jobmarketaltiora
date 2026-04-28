@@ -93,6 +93,35 @@ public class ProductSuggestion
     /// <summary>pending | completed | failed</summary>
     public string LlmStatus { get; set; } = "pending";
 
+    /// <summary>JSON object with MVP Technical Requirements from synthesize-technical-mvp endpoint.</summary>
+    public string? TechnicalMvpJson { get; set; }
+
+    /// <summary>open | closed — set to "closed" by user via Mark as Closed button</summary>
+    public string Status { get; set; } = "open";
+
     /// <summary>When this consolidated product was last generated/updated.</summary>
     public DateTime GeneratedAt { get; set; }
+
+    // ── Manual funnel (human-in-the-loop) ────────────────────────────────────
+
+    /// <summary>
+    /// Optional FK to an Opportunity record when this product was created manually
+    /// from the human-in-the-loop funnel (POST /api/products/from-opportunity).
+    /// Null for rule-based auto-generated products.
+    /// </summary>
+    public int? OpportunityId { get; set; }
+    public Opportunity? Opportunity { get; set; }
+
+    /// <summary>
+    /// The slug id of the AI-generated idea (from productIdeas JSON) that spawned this product.
+    /// Used for bidirectional dedup: prevents creating the same idea twice from the Opportunity detail page.
+    /// Example: "cloud-audit-sprint"
+    /// </summary>
+    public string? SourceIdeaId { get; set; }
+
+    /// <summary>
+    /// Public URL for the product image shown in the dashboard and detail views.
+    /// Can be an uploaded local file URL or an external image URL.
+    /// </summary>
+    public string? ImageUrl { get; set; }
 }

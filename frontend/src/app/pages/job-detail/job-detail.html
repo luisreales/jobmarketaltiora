@@ -1,25 +1,31 @@
-<section class="min-h-[100dvh] bg-blue-500 p-4 pt-[max(env(safe-area-inset-top),1rem)] pb-[max(env(safe-area-inset-bottom),1rem)] md:p-8 md:pt-[max(env(safe-area-inset-top),2rem)] md:pb-[max(env(safe-area-inset-bottom),2rem)] lg:p-12 lg:pt-[max(env(safe-area-inset-top),3rem)] lg:pb-[max(env(safe-area-inset-bottom),3rem)]">
-	<div class="mx-auto w-full max-w-5xl rounded-3xl bg-white px-6 py-6 shadow-xl md:px-10 md:py-8">
-		<header class="mb-6 flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
-			<div>
-				<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Job detail</p>
-				<h2 class="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">Vacante #{{ jobId }}</h2>
-			</div>
+<section class="min-h-[100dvh] bg-slate-100 p-4 md:p-8">
+  <div class="mx-auto w-full max-w-4xl space-y-6">
 
-			<a
-				[queryParams]="backLinkQueryParams"
-				[routerLink]="backLinkPath"
-				class="inline-flex items-center justify-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900">
-				{{ backLinkLabel }}
-			</a>
-		</header>
+    <!-- Back -->
+    <div>
+      <a
+        [queryParams]="backLinkQueryParams"
+        [routerLink]="backLinkPath"
+        class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-slate-800">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+        </svg>
+        {{ backLinkLabel }}
+      </a>
+    </div>
 
-		@if (loading) {
-			<div class="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm font-medium text-slate-500">Cargando detalle...</div>
-		} @else if (job) {
-			<app-job-detail-card [job]="job"></app-job-detail-card>
-		} @else {
-			<div class="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm font-semibold text-rose-700">No se pudo cargar la vacante solicitada.</div>
-		}
-	</div>
+    @if (loading) {
+      <div class="rounded-2xl bg-white p-10 text-center text-sm text-slate-400 shadow-sm">
+        Loading job detail...
+      </div>
+    } @else if (!job) {
+      <div class="rounded-2xl border border-red-200 bg-red-50 p-8 text-center shadow-sm">
+        <p class="text-sm font-semibold text-red-700">Job not found.</p>
+        <a routerLink="/jobs" class="mt-2 inline-block text-xs text-blue-600 hover:underline">← Back to Jobs</a>
+      </div>
+    } @else {
+      <app-job-detail-card [job]="job"></app-job-detail-card>
+    }
+
+  </div>
 </section>
