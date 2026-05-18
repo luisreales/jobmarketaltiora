@@ -7,8 +7,7 @@
         <div>
           <h1 class="text-2xl font-extrabold text-slate-900">💡 Idea Vault</h1>
           <p class="mt-1 text-sm text-slate-500">
-            All AI-generated product ideas. Orphaned ideas are preserved even after
-            their Opportunity is deleted.
+            All AI-generated product ideas from LinkedIn, Upwork, and AppSumo.
           </p>
         </div>
         <button
@@ -20,7 +19,7 @@
       </div>
 
       <!-- KPIs -->
-      <div class="mt-6 grid grid-cols-3 gap-3">
+      <div class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
           <p class="text-xs text-slate-500">Total ideas</p>
           <p class="text-xl font-bold text-slate-900">{{ ideas.length }}</p>
@@ -32,6 +31,10 @@
         <article class="rounded-xl border border-amber-100 bg-amber-50 p-3">
           <p class="text-xs text-amber-700">Unlinked (orphaned)</p>
           <p class="text-xl font-bold text-amber-800">{{ unlinkedCount }}</p>
+        </article>
+        <article class="rounded-xl border border-orange-100 bg-orange-50 p-3">
+          <p class="text-xs text-orange-700">AppSumo</p>
+          <p class="text-xl font-bold text-orange-800">{{ appSumoCount }}</p>
         </article>
       </div>
     </header>
@@ -49,7 +52,7 @@
       <div class="rounded-2xl bg-white p-10 text-center shadow-sm">
         <p class="text-sm font-semibold text-slate-600">No ideas yet.</p>
         <p class="mt-1 text-xs text-slate-400">
-          Ideas are saved automatically when you run AI analysis on an Opportunity.
+          Ideas are saved automatically when you run AI analysis on an Opportunity or scrape AppSumo.
         </p>
       </div>
     }
@@ -58,9 +61,10 @@
       <div class="overflow-hidden rounded-2xl bg-white shadow-sm">
 
         <!-- Table header -->
-        <div class="hidden grid-cols-[2fr_2fr_1fr_auto] gap-4 border-b border-slate-100 bg-slate-50 px-5 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-400 md:grid">
+        <div class="hidden grid-cols-[1.5fr_2fr_1.5fr_0.8fr_auto] gap-4 border-b border-slate-100 bg-slate-50 px-5 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-400 md:grid">
           <span>Idea Name</span>
           <span>Linked Opportunity</span>
+          <span>Source</span>
           <span>Created</span>
           <span></span>
         </div>
@@ -69,7 +73,7 @@
         @for (idea of ideas; track idea.id; let odd = $odd) {
           <div
             [class.bg-slate-50]="odd"
-            class="grid grid-cols-1 gap-2 border-b border-slate-100 px-5 py-4 md:grid-cols-[2fr_2fr_1fr_auto] md:items-start md:gap-4">
+            class="grid grid-cols-1 gap-2 border-b border-slate-100 px-5 py-4 md:grid-cols-[1.5fr_2fr_1.5fr_0.8fr_auto] md:items-start md:gap-4">
 
             <!-- Idea name + justification -->
             <div>
@@ -99,13 +103,51 @@
               }
             </div>
 
+            <!-- Source badge -->
+            <div class="flex items-start gap-2 pt-0.5 flex-wrap">
+              <span
+                class="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                [ngClass]="sourceBadgeClass(idea.source)">
+                {{ idea.source }}
+              </span>
+              @if (convertErrors.get(idea.id)) {
+                <span class="text-[10px] text-red-600">{{ convertErrors.get(idea.id) }}</span>
+              }
+            </div>
+
             <!-- Created date -->
             <div class="text-xs text-slate-400 pt-0.5">
               {{ idea.createdAt | date:'d MMM y' }}
             </div>
 
-            <!-- Edit button -->
-            <div>
+            <!-- Actions -->
+            <div class="flex flex-wrap gap-1.5">
+              <!-- Detail Rating (AppSumo only) -->
+              @if (idea.appSumoProductId != null) {
+                <button
+                  (click)="openDrawer(idea)"
+                  class="whitespace-nowrap rounded-lg border border-orange-300 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 transition hover:bg-orange-100"
+                  type="button">
+                  🌮 Ratings
+                </button>
+              }
+
+              <!-- Convert to Opportunity -->
+              @if (idea.opportunityId == null) {
+                <button
+                  (click)="convertIdea(idea)"
+                  [disabled]="convertingIds.has(idea.id)"
+                  class="whitespace-nowrap rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  type="button">
+                  @if (convertingIds.has(idea.id)) { Converting... } @else { → Opportunity }
+                </button>
+              } @else {
+                <span class="rounded-lg bg-green-100 px-3 py-1.5 text-xs font-semibold text-green-700">
+                  ✓ Converted
+                </span>
+              }
+
+              <!-- Edit -->
               <button
                 (click)="openEdit(idea)"
                 class="whitespace-nowrap rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
@@ -199,4 +241,80 @@
 
     </div>
   </div>
+}
+
+<!-- ── AppSumo Reviews Drawer ─────────────────────────────────────────────────── -->
+@if (drawerIdea) {
+  <!-- Backdrop -->
+  <div
+    class="fixed inset-0 z-40 bg-black/40"
+    (click)="closeDrawer()">
+  </div>
+
+  <!-- Slide-over panel -->
+  <aside class="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col bg-white shadow-2xl">
+
+    <!-- Drawer header -->
+    <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+      <div>
+        <h2 class="text-base font-bold text-slate-900">🌮 AppSumo Reviews</h2>
+        <p class="mt-0.5 text-xs text-slate-500">{{ drawerIdea.name }}</p>
+      </div>
+      <button
+        (click)="closeDrawer()"
+        class="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+        type="button">
+        ✕
+      </button>
+    </div>
+
+    <!-- Drawer body -->
+    <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+
+      @if (drawerLoading) {
+        <div class="py-12 text-center text-sm text-slate-400">Loading reviews...</div>
+      }
+
+      @if (drawerError) {
+        <div class="rounded-xl bg-red-50 p-4 text-sm text-red-600">{{ drawerError }}</div>
+      }
+
+      @if (!drawerLoading && drawerReviews.length === 0 && !drawerError) {
+        <div class="py-12 text-center text-sm text-slate-400">No low-rating reviews found.</div>
+      }
+
+      @for (review of drawerReviews; track review.id) {
+        <div class="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-2">
+
+          <!-- Taco rating -->
+          <div class="flex items-center gap-1">
+            @for (t of tacoArray(review.tacoRating); track $index) {
+              <span class="text-base">🌮</span>
+            }
+            @if (review.isVerified) {
+              <span class="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">✓ Verified</span>
+            }
+          </div>
+
+          <!-- Review text -->
+          <p class="text-xs text-slate-700 leading-relaxed">{{ review.reviewText }}</p>
+
+          <!-- Reviewer meta -->
+          <div class="flex items-center justify-between text-[10px] text-slate-400">
+            <span>{{ review.reviewerName ?? 'Anonymous' }}</span>
+            <span class="flex items-center gap-3">
+              @if (review.reviewDate) {
+                <span>{{ review.reviewDate | date:'d MMM y' }}</span>
+              }
+              @if (review.foundHelpful != null) {
+                <span>👍 {{ review.foundHelpful }}</span>
+              }
+            </span>
+          </div>
+
+        </div>
+      }
+    </div>
+
+  </aside>
 }

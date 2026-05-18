@@ -13,6 +13,7 @@ export const routes: Routes = [
 	{ path: 'ai-audit', loadComponent: () => import('./pages/ai-audit/ai-audit').then((m) => m.AiAudit) },
 	{ path: 'prompt-ai', loadComponent: () => import('./pages/prompt-ai/prompt-ai').then((m) => m.PromptAi) },
 	{ path: 'scraping', loadComponent: () => import('./pages/scraping/scraping').then((m) => m.ScrapingComponent) },
+	{ path: 'appsumo', loadComponent: () => import('./pages/appsumo/appsumo').then((m) => m.AppSumoPage) },
 	{ path: 'jobs/:id', loadComponent: () => import('./pages/job-detail/job-detail').then((m) => m.JobDetail) },
 	{ path: '**', redirectTo: 'jobs' }
 ];

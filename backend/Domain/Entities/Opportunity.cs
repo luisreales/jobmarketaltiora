@@ -8,8 +8,8 @@ public class Opportunity
 {
     public int Id { get; set; }
 
-    public int JobId { get; set; }
-    public JobOffer Job { get; set; } = null!;
+    public int? JobId { get; set; }
+    public JobOffer? Job { get; set; }
 
     // Denormalized from JobOffer at creation time for funnel independence
     public string Company { get; set; } = string.Empty;

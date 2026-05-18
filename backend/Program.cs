@@ -1,10 +1,10 @@
 using backend.Application.Interfaces;
 using backend.Infrastructure.Providers;
+using backend.Infrastructure.Repositories;
 using backend.Infrastructure.Scraping;
+using backend.Infrastructure.Services;
 using backend.Infrastructure.Sessions;
 using backend.Infrastructure.Data;
-using backend.Infrastructure.Repositories;
-using backend.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -56,6 +56,11 @@ builder.Services.AddSingleton<ISemanticKernelProvider, SemanticKernelProvider>()
 builder.Services.AddSingleton<MarketIntelligenceExecutionTracker>();
 builder.Services.AddSingleton<IBrowserPool, BrowserPool>();
 builder.Services.AddScoped<IPlaywrightScraper, PlaywrightScraper>();
+
+// AppSumo scraper
+builder.Services.AddScoped<AppSumoScraperService>();
+builder.Services.AddScoped<AppSumoRepository>();
+builder.Services.AddScoped<IAppSumoOrchestratorService, AppSumoOrchestratorService>();
 builder.Services.AddScoped<ISessionManager, LinkedInSessionManager>();
 builder.Services.AddHttpClient<IUpworkScraperClient, UpworkScraperClient>((serviceProvider, client) =>
 {

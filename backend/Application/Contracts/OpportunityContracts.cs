@@ -13,7 +13,7 @@ public class OpportunityQuery
 
 public record OpportunityDto(
     int Id,
-    int JobId,
+    int? JobId,
     string Company,
     string JobTitle,
     string? JobDescription,
@@ -43,9 +43,21 @@ public record OpportunityIdeaDto(
     int? OpportunityId,
     string? OpportunityCompany,
     string? OpportunityJobTitle,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string Source,
+    int? AppSumoProductId);
 
 public record UpdateOpportunityIdeaRequest(
     string Name,
     string BusinessJustification,
-    int? OpportunityId);
+    int? OpportunityId,
+    string? Source = null);
+
+public record AppSumoReviewForIdeaDto(
+    long Id,
+    byte TacoRating,
+    string? ReviewerName,
+    DateOnly? ReviewDate,
+    string ReviewText,
+    int? FoundHelpful,
+    bool IsVerified);

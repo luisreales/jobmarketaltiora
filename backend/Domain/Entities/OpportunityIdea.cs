@@ -18,5 +18,12 @@ public class OpportunityIdea
     public int? OpportunityId { get; set; }
     public Opportunity? Opportunity { get; set; }
 
+    /// <summary>Origin of this idea: "LinkedIn" | "Upwork" | "AppSumo".</summary>
+    public string Source { get; set; } = "LinkedIn";
+
+    /// <summary>Nullable FK to AppSumoProduct. Set only for AppSumo-sourced ideas.</summary>
+    public int? AppSumoProductId { get; set; }
+    public AppSumoProduct? AppSumoProduct { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

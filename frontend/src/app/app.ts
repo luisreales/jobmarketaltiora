@@ -20,7 +20,8 @@ export class App {
     { path: '/mvp-requirements', label: '🛠 MVP Requirements' },
     { path: '/ai-audit', label: 'AI Audit' },
     { path: '/prompt-ai', label: 'Prompt AI' },
-    { path: '/scraping', label: 'Scraping' }
+    { path: '/scraping', label: 'Scraping' },
+    { path: '/appsumo', label: '🌮 AppSumo' }
   ];
 
   toggleSidebar(): void {

@@ -17,6 +17,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<CommercialStrategy> CommercialStrategies => Set<CommercialStrategy>();
     public DbSet<MvpRequirement> MvpRequirements => Set<MvpRequirement>();
 
+    // AppSumo scraper
+    public DbSet<AppSumoCategory> AppSumoCategories => Set<AppSumoCategory>();
+    public DbSet<AppSumoProduct> AppSumoProducts => Set<AppSumoProduct>();
+    public DbSet<AppSumoReview> AppSumoReviews => Set<AppSumoReview>();
+    public DbSet<AppSumoScrapeRun> AppSumoScrapeRuns => Set<AppSumoScrapeRun>();
+    public DbSet<ProductScrapeState> ProductScrapeStates => Set<ProductScrapeState>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<JobOffer>(entity =>
@@ -167,7 +174,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasOne(e => e.Job)
                 .WithMany()
                 .HasForeignKey(e => e.JobId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<ProductSuggestion>(entity =>
@@ -210,13 +218,22 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.Name).HasMaxLength(300).IsRequired();
             entity.Property(e => e.BusinessJustification).HasColumnType("text").IsRequired();
             entity.Property(e => e.OpportunityId);
+            entity.Property(e => e.Source).HasMaxLength(20).IsRequired().HasDefaultValue("LinkedIn");
+            entity.Property(e => e.AppSumoProductId);
 
             entity.HasIndex(e => e.OpportunityId);
             entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.Source);
+            entity.HasIndex(e => e.AppSumoProductId);
 
             entity.HasOne(e => e.Opportunity)
                 .WithMany(o => o.Ideas)
                 .HasForeignKey(e => e.OpportunityId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.AppSumoProduct)
+                .WithMany()
+                .HasForeignKey(e => e.AppSumoProductId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
@@ -256,6 +273,75 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .WithMany()
                 .HasForeignKey(e => e.ProductId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<AppSumoCategory>(entity =>
+        {
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Slug).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Url).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.ParentSlug).HasMaxLength(200);
+            entity.HasIndex(e => e.Slug).IsUnique();
+        });
+
+        modelBuilder.Entity<AppSumoProduct>(entity =>
+        {
+            entity.Property(e => e.Name).HasMaxLength(300).IsRequired();
+            entity.Property(e => e.Slug).HasMaxLength(300).IsRequired();
+            entity.Property(e => e.Url).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.Description).HasColumnType("text");
+            entity.Property(e => e.OverallRating).HasPrecision(3, 2);
+            entity.Property(e => e.PricingModel).HasMaxLength(100);
+            entity.Property(e => e.TagsJson).HasColumnType("text");
+            entity.HasIndex(e => e.Slug).IsUnique();
+            entity.HasIndex(e => e.CategoryId);
+
+            entity.HasOne(e => e.Category)
+                .WithMany(c => c.Products)
+                .HasForeignKey(e => e.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AppSumoReview>(entity =>
+        {
+            entity.Property(e => e.AppSumoReviewId).HasMaxLength(100);
+            entity.Property(e => e.ReviewerName).HasMaxLength(200);
+            entity.Property(e => e.ReviewText).HasColumnType("text").IsRequired();
+            entity.HasIndex(e => e.ProductId);
+            entity.HasIndex(e => e.TacoRating);
+            entity.HasIndex(e => e.ReviewDate);
+            entity.HasIndex(e => new { e.ProductId, e.AppSumoReviewId }).IsUnique()
+                .HasFilter("\"AppSumoReviewId\" IS NOT NULL");
+
+            entity.HasOne(e => e.Product)
+                .WithMany(p => p.Reviews)
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AppSumoScrapeRun>(entity =>
+        {
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Running");
+            entity.Property(e => e.Notes).HasColumnType("text");
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.StartedAt);
+        });
+
+        modelBuilder.Entity<ProductScrapeState>(entity =>
+        {
+            entity.HasKey(e => e.ProductId);
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Pending");
+            entity.Property(e => e.LastError).HasColumnType("text");
+
+            entity.HasOne(e => e.Product)
+                .WithOne(p => p.ScrapeState)
+                .HasForeignKey<ProductScrapeState>(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.LastRun)
+                .WithMany()
+                .HasForeignKey(e => e.LastRunId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<AiPromptTemplate>(entity =>

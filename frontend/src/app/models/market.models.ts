@@ -223,7 +223,7 @@ export interface OpportunityQuery {
 
 export interface Opportunity {
   id: number;
-  jobId: number;
+  jobId: number | null;
   company: string;
   jobTitle: string;
   jobDescription?: string | null;
@@ -261,12 +261,25 @@ export interface OpportunityIdea {
   opportunityCompany?: string | null;
   opportunityJobTitle?: string | null;
   createdAt: string;
+  source: string;
+  appSumoProductId?: number | null;
 }
 
 export interface UpdateOpportunityIdeaRequest {
   name: string;
   businessJustification: string;
   opportunityId?: number | null;
+  source?: string | null;
+}
+
+export interface AppSumoReviewForIdea {
+  id: number;
+  tacoRating: number;
+  reviewerName: string | null;
+  reviewDate: string | null;
+  reviewText: string;
+  foundHelpful: number | null;
+  isVerified: boolean;
 }
 
 // Commercial strategy parsed from SynthesisDetailJson for Phase 3

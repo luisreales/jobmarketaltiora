@@ -179,8 +179,8 @@ public class JobsController(
         var allJobIds = jobs.Select(x => x.Id).ToList();
         var allOpportunityMap = await dbContext.Opportunities
             .AsNoTracking()
-            .Where(o => allJobIds.Contains(o.JobId))
-            .GroupBy(o => o.JobId)
+            .Where(o => o.JobId != null && allJobIds.Contains(o.JobId!.Value))
+            .GroupBy(o => o.JobId!.Value)
             .Select(g => new { JobId = g.Key, OpportunityId = g.Min(o => o.Id) })
             .ToDictionaryAsync(x => x.JobId, x => x.OpportunityId, cancellationToken);
 
@@ -229,8 +229,8 @@ public class JobsController(
         var jobIds = items.Select(x => x.Id).ToList();
         var opportunityMap = await dbContext.Opportunities
             .AsNoTracking()
-            .Where(o => jobIds.Contains(o.JobId))
-            .GroupBy(o => o.JobId)
+            .Where(o => o.JobId != null && jobIds.Contains(o.JobId!.Value))
+            .GroupBy(o => o.JobId!.Value)
             .Select(g => new { JobId = g.Key, OpportunityId = g.Min(o => o.Id) })
             .ToDictionaryAsync(x => x.JobId, x => x.OpportunityId, cancellationToken);
 

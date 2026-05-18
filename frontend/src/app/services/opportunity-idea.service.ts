@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { OpportunityIdea, UpdateOpportunityIdeaRequest } from '../models/market.models';
+import { AppSumoReviewForIdea, OpportunityIdea, UpdateOpportunityIdeaRequest } from '../models/market.models';
 
 @Injectable({ providedIn: 'root' })
 export class OpportunityIdeaService {
@@ -15,5 +15,13 @@ export class OpportunityIdeaService {
 
   update(id: string, body: UpdateOpportunityIdeaRequest): Observable<OpportunityIdea> {
     return this.http.put<OpportunityIdea>(`${this.base}/${id}`, body);
+  }
+
+  convert(id: string): Observable<OpportunityIdea> {
+    return this.http.post<OpportunityIdea>(`${this.base}/${id}/convert`, {});
+  }
+
+  getReviews(id: string): Observable<AppSumoReviewForIdea[]> {
+    return this.http.get<AppSumoReviewForIdea[]>(`${this.base}/${id}/reviews`);
   }
 }

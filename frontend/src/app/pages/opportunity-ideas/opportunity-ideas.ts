@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { OpportunityIdeaService } from '../../services/opportunity-idea.service';
 import { OpportunityService } from '../../services/opportunity.service';
-import { OpportunityIdea, Opportunity, UpdateOpportunityIdeaRequest } from '../../models/market.models';
+import { AppSumoReviewForIdea, OpportunityIdea, Opportunity, UpdateOpportunityIdeaRequest } from '../../models/market.models';
 
 @Component({
   selector: 'app-opportunity-ideas',
@@ -12,7 +12,7 @@ import { OpportunityIdea, Opportunity, UpdateOpportunityIdeaRequest } from '../.
   templateUrl: './opportunity-ideas.html',
 })
 export class OpportunityIdeas implements OnInit {
-  private readonly ideaService     = inject(OpportunityIdeaService);
+  private readonly ideaService        = inject(OpportunityIdeaService);
   private readonly opportunityService = inject(OpportunityService);
 
   ideas: OpportunityIdea[]   = [];
@@ -23,8 +23,18 @@ export class OpportunityIdeas implements OnInit {
   // Edit modal state
   editingIdea: OpportunityIdea | null = null;
   editForm: UpdateOpportunityIdeaRequest = { name: '', businessJustification: '', opportunityId: null };
-  saving     = false;
-  saveError  = '';
+  saving    = false;
+  saveError = '';
+
+  // Convert state
+  convertingIds = new Set<string>();
+  convertErrors = new Map<string, string>();
+
+  // Drawer state
+  drawerIdea: OpportunityIdea | null = null;
+  drawerReviews: AppSumoReviewForIdea[] = [];
+  drawerLoading = false;
+  drawerError   = '';
 
   ngOnInit(): void {
     this.loadIdeas();
@@ -43,19 +53,33 @@ export class OpportunityIdeas implements OnInit {
   loadOpportunities(): void {
     this.opportunityService.getOpportunities({ pageSize: 100 }).subscribe({
       next:  (resp) => { this.opportunities = resp.items; },
-      error: () => {}  // dropdown degrades gracefully
+      error: () => {}
     });
   }
 
-  get linkedCount(): number   { return this.ideas.filter(i => i.opportunityId != null).length; }
-  get unlinkedCount(): number { return this.ideas.filter(i => i.opportunityId == null).length; }
+  get linkedCount(): number    { return this.ideas.filter(i => i.opportunityId != null).length; }
+  get unlinkedCount(): number  { return this.ideas.filter(i => i.opportunityId == null).length; }
+  get appSumoCount(): number   { return this.ideas.filter(i => i.source === 'AppSumo').length; }
+
+  sourceBadgeClass(source: string): string {
+    switch (source) {
+      case 'AppSumo':  return 'bg-orange-100 text-orange-800';
+      case 'Upwork':   return 'bg-green-100 text-green-800';
+      default:         return 'bg-blue-100 text-blue-800';
+    }
+  }
+
+  tacoArray(n: number): unknown[] {
+    return Array.from({ length: Math.max(0, n) });
+  }
 
   openEdit(idea: OpportunityIdea): void {
     this.editingIdea = idea;
     this.editForm    = {
-      name:                 idea.name,
+      name:                  idea.name,
       businessJustification: idea.businessJustification,
-      opportunityId:        idea.opportunityId ?? null
+      opportunityId:         idea.opportunityId ?? null,
+      source:                idea.source
     };
     this.saveError = '';
   }
@@ -84,6 +108,45 @@ export class OpportunityIdeas implements OnInit {
         this.saving    = false;
       }
     });
+  }
+
+  convertIdea(idea: OpportunityIdea): void {
+    if (this.convertingIds.has(idea.id) || idea.opportunityId != null) return;
+    this.convertingIds.add(idea.id);
+    this.convertErrors.delete(idea.id);
+
+    this.ideaService.convert(idea.id).subscribe({
+      next: (updated) => {
+        const idx = this.ideas.findIndex(i => i.id === updated.id);
+        if (idx !== -1) this.ideas[idx] = updated;
+        this.convertingIds.delete(idea.id);
+      },
+      error: () => {
+        this.convertErrors.set(idea.id, 'Convert failed.');
+        this.convertingIds.delete(idea.id);
+      }
+    });
+  }
+
+  openDrawer(idea: OpportunityIdea): void {
+    this.drawerIdea    = idea;
+    this.drawerReviews = [];
+    this.drawerError   = '';
+
+    if (idea.appSumoProductId != null) {
+      this.drawerLoading = true;
+      this.ideaService.getReviews(idea.id).subscribe({
+        next:  (reviews) => { this.drawerReviews = reviews; this.drawerLoading = false; },
+        error: () => { this.drawerError = 'Failed to load reviews.'; this.drawerLoading = false; }
+      });
+    }
+  }
+
+  closeDrawer(): void {
+    this.drawerIdea    = null;
+    this.drawerReviews = [];
+    this.drawerError   = '';
+    this.drawerLoading = false;
   }
 
   opportunityLabel(opp: Opportunity): string {

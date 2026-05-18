@@ -139,6 +139,7 @@ public class JobsControllerFunnelTests
             string query, string? location, int limit,
             IReadOnlyCollection<string>? providers = null,
             int? totalPaging = null, int? startPage = null, int? endPage = null,
+            bool showBrowser = false,
             CancellationToken cancellationToken = default)
             => Task.FromResult((0, 0));
 
@@ -160,7 +161,7 @@ public class JobsControllerFunnelTests
             => Task.FromResult((false, (DateTime?)null, (DateTime?)null, (DateTime?)null));
 
         public Task LoginAsync(string provider, string username, string password,
-            CancellationToken cancellationToken = default)
+            bool showBrowser = false, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
 
         public Task LogoutAsync(string provider, CancellationToken cancellationToken = default)

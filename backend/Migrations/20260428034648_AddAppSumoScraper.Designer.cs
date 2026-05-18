@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using backend.Infrastructure.Data;
@@ -11,9 +12,11 @@ using backend.Infrastructure.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260428034648_AddAppSumoScraper")]
+    partial class AddAppSumoScraper
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -855,7 +858,7 @@ namespace backend.Migrations
                     b.Property<string>("JobDescription")
                         .HasColumnType("text");
 
-                    b.Property<int?>("JobId")
+                    b.Property<int>("JobId")
                         .HasColumnType("integer");
 
                     b.Property<string>("JobTitle")
@@ -906,9 +909,6 @@ namespace backend.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<int?>("AppSumoProductId")
-                        .HasColumnType("integer");
-
                     b.Property<string>("BusinessJustification")
                         .IsRequired()
                         .HasColumnType("text");
@@ -924,22 +924,11 @@ namespace backend.Migrations
                     b.Property<int?>("OpportunityId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("LinkedIn");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("AppSumoProductId");
 
                     b.HasIndex("CreatedAt");
 
                     b.HasIndex("OpportunityId");
-
-                    b.HasIndex("Source");
 
                     b.ToTable("OpportunityIdeas");
                 });
@@ -1228,24 +1217,18 @@ namespace backend.Migrations
                     b.HasOne("backend.Domain.Entities.JobOffer", "Job")
                         .WithMany()
                         .HasForeignKey("JobId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Job");
                 });
 
             modelBuilder.Entity("backend.Domain.Entities.OpportunityIdea", b =>
                 {
-                    b.HasOne("backend.Domain.Entities.AppSumoProduct", "AppSumoProduct")
-                        .WithMany()
-                        .HasForeignKey("AppSumoProductId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("backend.Domain.Entities.Opportunity", "Opportunity")
                         .WithMany("Ideas")
                         .HasForeignKey("OpportunityId")
                         .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("AppSumoProduct");
 
                     b.Navigation("Opportunity");
                 });

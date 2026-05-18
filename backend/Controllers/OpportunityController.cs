@@ -380,7 +380,7 @@ public class OpportunityController(
         return json;
     }
 
-    private void SavePromptLog(int jobId, string promptText, string promptHash,
+    private void SavePromptLog(int? jobId, string promptText, string promptHash,
         string responseText, bool isSuccess, string? errorMessage, int latencyMs)
     {
         dbContext.AiPromptLogs.Add(new AiPromptLog
