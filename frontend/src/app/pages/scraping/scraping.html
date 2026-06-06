@@ -1,6 +1,153 @@
 <div class="container mx-auto px-4 py-8 max-w-6xl">
   <h1 class="text-3xl font-bold mb-8 text-gray-900 dark:text-white">Job Scraping Control</h1>
 
+  <!-- ── Provider Session Status Bar ── -->
+  <div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+
+    <!-- LinkedIn Session Card -->
+    <div class="rounded-xl border bg-white dark:bg-gray-800 shadow-sm p-4"
+      [class.border-emerald-300]="linkedinAuthStatus?.isAuthenticated"
+      [class.border-red-300]="linkedinAuthStatus && !linkedinAuthStatus.isAuthenticated"
+      [class.border-slate-200]="!linkedinAuthStatus">
+
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6z"/>
+            <rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/>
+          </svg>
+        </div>
+        <span class="font-semibold text-sm text-slate-700 dark:text-slate-200">LinkedIn Session</span>
+        @if (linkedinAuthLoading) {
+          <span class="ml-auto text-xs text-slate-400 animate-pulse">Checking…</span>
+        }
+        @if (!linkedinAuthLoading && linkedinAuthStatus?.isAuthenticated) {
+          <span class="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">● Active</span>
+        }
+        @if (!linkedinAuthLoading && linkedinAuthStatus && !linkedinAuthStatus.isAuthenticated) {
+          <span class="ml-auto inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-600">● Offline</span>
+        }
+      </div>
+
+      @if (!linkedinAuthLoading && linkedinAuthStatus?.isAuthenticated) {
+        <div class="space-y-1 text-xs text-slate-500 mb-3">
+          @if (linkedinAuthStatus!.lastLoginAt) {
+            <div class="flex justify-between">
+              <span>Last login</span>
+              <span class="font-medium text-slate-700">{{ formatDate(linkedinAuthStatus!.lastLoginAt!) }}</span>
+            </div>
+          }
+          @if (linkedinAuthStatus!.expiresAt) {
+            <div class="flex justify-between">
+              <span>Expires</span>
+              <span class="font-medium text-slate-700">{{ formatDate(linkedinAuthStatus!.expiresAt!) }}</span>
+            </div>
+          }
+        </div>
+        <div class="flex gap-2">
+          <button (click)="loadLinkedInAuthStatus()" class="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 transition">Refresh</button>
+          <button (click)="logoutLinkedIn()" class="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition">Disconnect</button>
+        </div>
+      }
+
+      @if (!linkedinAuthLoading && linkedinAuthStatus && !linkedinAuthStatus.isAuthenticated) {
+        <div class="mb-3 rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+          <p class="font-semibold mb-1">Session inactive — to enable LinkedIn scraping:</p>
+          <ol class="list-decimal list-inside space-y-1">
+            <li>Make sure the backend container is running: <code class="bg-amber-100 px-1 rounded">docker-compose up -d backend</code></li>
+            <li>Click <strong>Login to LinkedIn</strong> — a browser window will open</li>
+            <li>Complete any LinkedIn 2FA or captcha in that window</li>
+            <li>Session is saved automatically (~24 h validity)</li>
+          </ol>
+        </div>
+        <div class="flex gap-2">
+          <button (click)="loadLinkedInAuthStatus()" [disabled]="linkedinAuthLoading" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition">Refresh</button>
+          <button (click)="loginLinkedIn()" [disabled]="linkedinLoginLoading"
+            class="flex-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 px-4 py-1.5 text-xs font-bold text-white transition">
+            @if (linkedinLoginLoading) { Logging in… } @else { Login to LinkedIn }
+          </button>
+        </div>
+      }
+
+      @if (linkedinLoginError) {
+        <div class="mt-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+          <strong>Error:</strong> {{ linkedinLoginError }}
+        </div>
+      }
+    </div>
+
+    <!-- Upwork Session Card -->
+    <div class="rounded-xl border bg-white dark:bg-gray-800 shadow-sm p-4"
+      [class.border-emerald-300]="upworkAuthStatus?.isAuthenticated"
+      [class.border-red-300]="upworkAuthStatus && !upworkAuthStatus.isAuthenticated"
+      [class.border-slate-200]="!upworkAuthStatus">
+
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+          </svg>
+        </div>
+        <span class="font-semibold text-sm text-slate-700 dark:text-slate-200">Upwork Session</span>
+        @if (upworkAuthLoading) {
+          <span class="ml-auto text-xs text-slate-400 animate-pulse">Checking…</span>
+        }
+        @if (!upworkAuthLoading && upworkAuthStatus?.isAuthenticated) {
+          <span class="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">● Active</span>
+        }
+        @if (!upworkAuthLoading && upworkAuthStatus && !upworkAuthStatus.isAuthenticated) {
+          <span class="ml-auto inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-600">● Offline</span>
+        }
+      </div>
+
+      @if (!upworkAuthLoading && upworkAuthStatus?.isAuthenticated) {
+        <div class="space-y-1 text-xs text-slate-500 mb-3">
+          @if (upworkAuthStatus!.lastLoginAt) {
+            <div class="flex justify-between">
+              <span>Last login</span>
+              <span class="font-medium text-slate-700">{{ formatDate(upworkAuthStatus!.lastLoginAt!) }}</span>
+            </div>
+          }
+          @if (upworkAuthStatus!.expiresAt) {
+            <div class="flex justify-between">
+              <span>Expires</span>
+              <span class="font-medium text-slate-700">{{ formatDate(upworkAuthStatus!.expiresAt!) }}</span>
+            </div>
+          }
+        </div>
+        <div class="flex gap-2">
+          <button (click)="loadUpworkAuthStatus()" class="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 transition">Refresh</button>
+          <button (click)="logoutUpwork()" class="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition">Disconnect</button>
+        </div>
+      }
+
+      @if (!upworkAuthLoading && upworkAuthStatus && !upworkAuthStatus.isAuthenticated) {
+        <div class="mb-3 rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+          <p class="font-semibold mb-1">Session inactive — to enable Upwork scraping:</p>
+          <ol class="list-decimal list-inside space-y-1">
+            <li>Start the scraper locally (Cloudflare requires a real browser — not Docker):<br>
+              <code class="bg-amber-100 px-1 rounded mt-0.5 inline-block">cd scraper-api &amp;&amp; node server.js</code></li>
+            <li>Open Postman → <code class="bg-amber-100 px-1 rounded">POST /api/auth/login</code><br>
+              body: <code class="bg-amber-100 px-1 rounded">&#123;"provider":"upwork","showBrowser":true&#125;</code></li>
+            <li>Log in to Upwork in the Chrome window that opens</li>
+            <li>Session is saved automatically (~12 h). Click <strong>Refresh</strong> here to confirm.</li>
+          </ol>
+        </div>
+        <button (click)="loadUpworkAuthStatus()" [disabled]="upworkAuthLoading"
+          class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition">
+          Refresh Status
+        </button>
+      }
+
+      @if (upworkLoginError) {
+        <div class="mt-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+          <strong>Error:</strong> {{ upworkLoginError }}
+        </div>
+      }
+    </div>
+
+  </div>
+
   <!-- ── Existing provider cards ── -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -45,6 +192,23 @@
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50" />
           </div>
         </div>
+        @if (analysisPrompts.length > 0) {
+          <div class="border-t border-slate-100 pt-3 space-y-2">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">AI Analysis Prompt</label>
+              <select [(ngModel)]="linkedinPromptKey" [disabled]="isLinkedInScraping"
+                class="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50">
+                @for (p of analysisPrompts; track p.key) {
+                  <option [value]="p.key">{{ p.key }} ({{ p.version }})</option>
+                }
+              </select>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-600">
+              <input type="checkbox" [(ngModel)]="linkedinAutoAnalyze" [disabled]="isLinkedInScraping" class="h-3.5 w-3.5 rounded accent-blue-500" />
+              Auto-analyze after scrape
+            </label>
+          </div>
+        }
       </div>
       <button (click)="scrapeLinkedIn()" [disabled]="isLinkedInScraping"
         class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg transition">
@@ -63,8 +227,11 @@
         <div class="mt-4 p-3 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded-lg text-sm">
           <p class="font-semibold">✓ Scraping Complete</p>
           <p>Found: <strong>{{ linkedinResult.totalFound }}</strong> jobs</p>
-          <p>Saved: <strong>{{ linkedinResult.savedCount }}</strong> jobs</p>
-          <p class="text-xs mt-2">{{ formatDate(linkedinResult.timestamp) }}</p>
+          <p>New: <strong>{{ linkedinResult.savedCount }}</strong> &nbsp;·&nbsp; Updated: <strong>{{ linkedinResult.updatedCount }}</strong></p>
+          @if (linkedinResult.activeKey) {
+            <p class="text-xs mt-1 opacity-80">Prompt: {{ linkedinResult.activeKey }}</p>
+          }
+          <p class="text-xs mt-1">{{ formatDate(linkedinResult.executedAtUtc) }}</p>
         </div>
       }
     </div>
@@ -92,11 +259,38 @@
             placeholder="e.g., Remote, USA, Mexico"
             class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50" />
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Results</label>
-          <input type="number" [(ngModel)]="upworkLimit" [disabled]="isUpworkScraping" min="1" max="100"
-            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50" />
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pages (1–44)</label>
+            <input type="number" [(ngModel)]="upworkPages" [disabled]="isUpworkScraping" min="1" max="44"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50" />
+            <p class="mt-1 text-xs text-slate-400">1 page = 10 jobs &nbsp;·&nbsp; max 44</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Expected jobs</label>
+            <div class="px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-700 font-semibold text-sm">
+              {{ upworkPages * 10 }}
+            </div>
+            <p class="mt-1 text-xs text-slate-400">pages × 10</p>
+          </div>
         </div>
+        @if (analysisPrompts.length > 0) {
+          <div class="border-t border-slate-100 pt-3 space-y-2">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">AI Analysis Prompt</label>
+              <select [(ngModel)]="upworkPromptKey" [disabled]="isUpworkScraping"
+                class="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-green-400 disabled:opacity-50">
+                @for (p of analysisPrompts; track p.key) {
+                  <option [value]="p.key">{{ p.key }} ({{ p.version }})</option>
+                }
+              </select>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-600">
+              <input type="checkbox" [(ngModel)]="upworkAutoAnalyze" [disabled]="isUpworkScraping" class="h-3.5 w-3.5 rounded accent-green-500" />
+              Auto-analyze after scrape
+            </label>
+          </div>
+        }
       </div>
       <button (click)="scrapeUpwork()" [disabled]="isUpworkScraping"
         class="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg transition">
@@ -115,8 +309,11 @@
         <div class="mt-4 p-3 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded-lg text-sm">
           <p class="font-semibold">✓ Scraping Complete</p>
           <p>Found: <strong>{{ upworkResult.totalFound }}</strong> jobs</p>
-          <p>Saved: <strong>{{ upworkResult.savedCount }}</strong> jobs</p>
-          <p class="text-xs mt-2">{{ formatDate(upworkResult.timestamp) }}</p>
+          <p>New: <strong>{{ upworkResult.savedCount }}</strong> &nbsp;·&nbsp; Updated: <strong>{{ upworkResult.updatedCount }}</strong></p>
+          @if (upworkResult.activeKey) {
+            <p class="text-xs mt-1 opacity-80">Prompt: {{ upworkResult.activeKey }}</p>
+          }
+          <p class="text-xs mt-1">{{ formatDate(upworkResult.executedAtUtc) }}</p>
         </div>
       }
     </div>
@@ -162,6 +359,23 @@
             }
           </div>
         </div>
+        @if (analysisPrompts.length > 0) {
+          <div class="border-t border-slate-100 pt-3 space-y-2">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">AI Analysis Prompt</label>
+              <select [(ngModel)]="multiPromptKey" [disabled]="isMultiScraping"
+                class="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-purple-400 disabled:opacity-50">
+                @for (p of analysisPrompts; track p.key) {
+                  <option [value]="p.key">{{ p.key }} ({{ p.version }})</option>
+                }
+              </select>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-600">
+              <input type="checkbox" [(ngModel)]="multiAutoAnalyze" [disabled]="isMultiScraping" class="h-3.5 w-3.5 rounded accent-purple-500" />
+              Auto-analyze after scrape
+            </label>
+          </div>
+        }
       </div>
       <button (click)="scrapeMultiProvider()" [disabled]="isMultiScraping || selectedProviders.length === 0"
         class="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg transition">
@@ -180,10 +394,181 @@
         <div class="mt-4 p-3 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded-lg text-sm">
           <p class="font-semibold">✓ Scraping Complete</p>
           <p>Found: <strong>{{ multiResult.totalFound }}</strong> jobs</p>
-          <p>Saved: <strong>{{ multiResult.savedCount }}</strong> jobs</p>
-          <p class="text-xs mt-2">{{ formatDate(multiResult.timestamp) }}</p>
+          <p>New: <strong>{{ multiResult.savedCount }}</strong> &nbsp;·&nbsp; Updated: <strong>{{ multiResult.updatedCount }}</strong></p>
+          @if (multiResult.activeKey) {
+            <p class="text-xs mt-1 opacity-80">Prompt: {{ multiResult.activeKey }}</p>
+          }
+          <p class="text-xs mt-1">{{ formatDate(multiResult.executedAtUtc) }}</p>
         </div>
       }
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       Data Quality
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="mt-10">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="h-px flex-1 bg-slate-200"></div>
+      <span class="flex items-center gap-2 rounded-full border border-slate-300 bg-slate-50 px-4 py-1 text-sm font-bold text-slate-600">
+        🧹 Data Quality
+      </span>
+      <div class="h-px flex-1 bg-slate-200"></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <!-- Stats card -->
+      <div class="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 p-5">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-lg">📊</div>
+            <div>
+              <h3 class="font-bold text-slate-800 dark:text-white text-sm">Database Health</h3>
+              <p class="text-xs text-slate-500">Current state of scraped jobs</p>
+            </div>
+          </div>
+          <button (click)="loadDataQuality()" [disabled]="dataQualityLoading"
+            class="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition">
+            ↺ Refresh
+          </button>
+        </div>
+
+        @if (dataQualityLoading) {
+          <div class="grid grid-cols-2 gap-3">
+            @for (i of [1,2,3,4]; track i) {
+              <div class="h-14 rounded-xl bg-slate-100 animate-pulse"></div>
+            }
+          </div>
+        }
+
+        @if (!dataQualityLoading && dataQuality) {
+          <div class="grid grid-cols-2 gap-3">
+            <div class="rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
+              <p class="text-2xl font-bold text-slate-800">{{ dataQuality.totalJobs }}</p>
+              <p class="text-xs text-slate-500 mt-0.5">Total jobs</p>
+            </div>
+            <div class="rounded-xl p-3 text-center"
+              [class.bg-emerald-50]="dataQuality.duplicateCount === 0"
+              [class.border-emerald-100]="dataQuality.duplicateCount === 0"
+              [class.bg-amber-50]="dataQuality.duplicateCount > 0"
+              [class.border-amber-100]="dataQuality.duplicateCount > 0"
+              [class.border]="true">
+              <p class="text-2xl font-bold"
+                [class.text-emerald-700]="dataQuality.duplicateCount === 0"
+                [class.text-amber-700]="dataQuality.duplicateCount > 0">
+                {{ dataQuality.duplicateCount }}
+              </p>
+              <p class="text-xs mt-0.5"
+                [class.text-emerald-600]="dataQuality.duplicateCount === 0"
+                [class.text-amber-600]="dataQuality.duplicateCount > 0">
+                Duplicates
+              </p>
+            </div>
+            <div class="rounded-xl p-3 text-center"
+              [class.bg-emerald-50]="dataQuality.staleUnprocessedCount === 0"
+              [class.border-emerald-100]="dataQuality.staleUnprocessedCount === 0"
+              [class.bg-orange-50]="dataQuality.staleUnprocessedCount > 0"
+              [class.border-orange-100]="dataQuality.staleUnprocessedCount > 0"
+              [class.border]="true">
+              <p class="text-2xl font-bold"
+                [class.text-emerald-700]="dataQuality.staleUnprocessedCount === 0"
+                [class.text-orange-700]="dataQuality.staleUnprocessedCount > 0">
+                {{ dataQuality.staleUnprocessedCount }}
+              </p>
+              <p class="text-xs mt-0.5"
+                [class.text-emerald-600]="dataQuality.staleUnprocessedCount === 0"
+                [class.text-orange-600]="dataQuality.staleUnprocessedCount > 0">
+                Stale (30d+)
+              </p>
+            </div>
+            <div class="rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
+              <p class="text-2xl font-bold text-blue-700">{{ dataQuality.unprocessedCount }}</p>
+              <p class="text-xs text-blue-500 mt-0.5">Unprocessed</p>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Purge card -->
+      <div class="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 p-5">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-lg">🗑️</div>
+          <div>
+            <h3 class="font-bold text-slate-800 dark:text-white text-sm">Purge Jobs</h3>
+            <p class="text-xs text-slate-500">Remove duplicates and stale unprocessed entries</p>
+          </div>
+        </div>
+
+        <div class="space-y-3 mb-4">
+          <div class="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600 space-y-1">
+            <p><strong>What gets deleted:</strong></p>
+            <ul class="list-disc list-inside space-y-0.5 text-slate-500">
+              <li>Duplicate rows with the same URL + source (keeps newest)</li>
+              <li>Unprocessed jobs older than the stale threshold</li>
+            </ul>
+            <p class="mt-1 text-slate-400">AI-enriched jobs (IsProcessed=true) are never deleted.</p>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <label class="text-xs font-semibold text-slate-600 w-24">Stale after</label>
+            <input type="number" [(ngModel)]="purgeStaleDays" min="7" max="365"
+              class="w-20 rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400" />
+            <span class="text-xs text-slate-500">days</span>
+          </div>
+
+          <label class="flex items-center gap-2 cursor-pointer rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+            <input type="checkbox" [(ngModel)]="purgeDryRun" class="h-4 w-4 rounded accent-slate-600" />
+            <span class="text-xs font-medium text-slate-700">Dry run <span class="text-slate-400 font-normal">(preview only — no deletion)</span></span>
+          </label>
+        </div>
+
+        <button (click)="runPurge()" [disabled]="purgeLoading"
+          class="w-full rounded-xl px-4 py-2.5 text-sm font-bold text-white transition disabled:opacity-50 disabled:cursor-not-allowed"
+          [class.bg-slate-500]="purgeDryRun"
+          [class.hover:bg-slate-600]="purgeDryRun"
+          [class.bg-red-500]="!purgeDryRun"
+          [class.hover:bg-red-600]="!purgeDryRun">
+          @if (purgeLoading) {
+            <span class="flex items-center justify-center gap-2">
+              <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              Running…
+            </span>
+          }
+          @if (!purgeLoading) {
+            {{ purgeDryRun ? '🔍 Preview Purge' : '🗑️ Run Purge' }}
+          }
+        </button>
+
+        @if (purgeResult) {
+          <div class="mt-3 rounded-xl border p-3 text-xs"
+            [class.bg-slate-50]="purgeResult.dryRun"
+            [class.border-slate-200]="purgeResult.dryRun"
+            [class.bg-emerald-50]="!purgeResult.dryRun"
+            [class.border-emerald-200]="!purgeResult.dryRun">
+            <p class="font-bold mb-1.5"
+              [class.text-slate-700]="purgeResult.dryRun"
+              [class.text-emerald-700]="!purgeResult.dryRun">
+              {{ purgeResult.dryRun ? '🔍 Dry run — nothing deleted' : '✓ Purge complete' }}
+            </p>
+            <div class="space-y-0.5 text-slate-600">
+              <div class="flex justify-between"><span>Duplicates found</span><strong>{{ purgeResult.deletedDuplicates }}</strong></div>
+              <div class="flex justify-between"><span>Stale unprocessed ({{ purgeResult.staleDaysThreshold }}d+)</span><strong>{{ purgeResult.deletedStaleUnprocessed }}</strong></div>
+              <div class="flex justify-between border-t border-slate-200 pt-1 mt-1">
+                <span>Total {{ purgeResult.dryRun ? 'to delete' : 'deleted' }}</span>
+                <strong class="text-red-600">{{ purgeResult.totalDeleted }}</strong>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (purgeError) {
+          <div class="mt-3 rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+            <strong>Error:</strong> {{ purgeError }}
+          </div>
+        }
+      </div>
+
     </div>
   </div>
 
@@ -367,6 +752,103 @@
   </div>
 
   <!-- ── About box ── -->
+  <!-- ── AI Analysis Section ──────────────────────────────────────────────── -->
+  <div class="mt-10">
+    <div class="mb-4 flex items-center gap-3">
+      <div class="h-px flex-1 bg-slate-200"></div>
+      <span class="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-violet-700">AI Analysis</span>
+      <div class="h-px flex-1 bg-slate-200"></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <!-- Manual trigger card -->
+      <div class="rounded-xl bg-white shadow-lg p-6 border-l-4 border-violet-500">
+        <div class="flex items-center gap-3 mb-5">
+          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-xl">🤖</div>
+          <div>
+            <h2 class="text-lg font-bold text-slate-800">Manual AI Analysis</h2>
+            <p class="text-xs text-slate-500">Run the AI enrichment worker on all unprocessed jobs</p>
+          </div>
+        </div>
+
+        <p class="text-sm text-slate-600 mb-4">
+          Each scraping card above has its own <strong>AI Analysis Prompt</strong> selector.
+          Use "Auto-analyze" per card, or trigger the worker manually here.
+        </p>
+
+        @if (analysisPromptsLoading) {
+          <p class="text-sm text-slate-400">Loading prompts…</p>
+        }
+
+        @if (!analysisPromptsLoading && analysisPrompts.length === 0) {
+          <div class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+            No active prompt templates found. Go to <strong>Prompt AI</strong> to create templates.
+          </div>
+        }
+
+        @if (analysisError) {
+          <p class="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 mb-3">{{ analysisError }}</p>
+        }
+
+        <button
+          (click)="runAnalysis()"
+          [disabled]="isRunningAnalysis"
+          class="w-full rounded-xl bg-violet-600 hover:bg-violet-700 disabled:bg-slate-400 text-white font-bold py-2 px-4 text-sm transition">
+          @if (isRunningAnalysis) {
+            <span class="flex items-center justify-center gap-2">
+              <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              Running analysis…
+            </span>
+          }
+          @else { Run AI Analysis Now }
+        </button>
+      </div>
+
+      <!-- Worker status + result -->
+      <div class="rounded-xl bg-white shadow-lg p-6 border-l-4 border-slate-300">
+        <div class="flex items-center gap-3 mb-5">
+          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-xl">📊</div>
+          <div>
+            <h2 class="text-lg font-bold text-slate-800">Worker Status</h2>
+            <p class="text-xs text-slate-500">Last AI enrichment run details</p>
+          </div>
+        </div>
+
+        @if (workerStatus) {
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-slate-500">Status</span>
+              <span [class]="workerStatus.isRunning ? 'text-blue-600 font-semibold' : 'text-slate-700'">
+                {{ workerStatus.isRunning ? '⚡ Running' : '✓ Idle' }}
+              </span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Last completed</span>
+              <span class="text-slate-700 text-xs">{{ workerStatus.lastCompletedAt ? (workerStatus.lastCompletedAt | date:'d MMM, HH:mm') : '—' }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Last processed</span>
+              <span class="font-semibold text-slate-700">{{ workerStatus.lastProcessedJobs }} jobs</span>
+            </div>
+            @if (workerStatus.lastError) {
+              <div class="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{{ workerStatus.lastError }}</div>
+            }
+          </div>
+        }
+
+        @if (analysisResult) {
+          <div class="mt-4 rounded-xl bg-violet-50 border border-violet-100 p-4">
+            <p class="text-sm font-semibold text-violet-800 mb-1">✓ Analysis complete</p>
+            <p class="text-sm text-violet-700"><strong>{{ analysisResult.processedJobs }}</strong> jobs enriched</p>
+            <p class="text-xs text-violet-500 mt-1">{{ analysisResult.completedAt | date:'d MMM y, HH:mm:ss' }}</p>
+          </div>
+        }
+      </div>
+
+    </div>
+  </div>
+
   <div class="mt-8 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
     <h3 class="font-semibold text-blue-900 dark:text-blue-200 mb-2">ℹ️ About This Tool</h3>
     <ul class="text-sm text-blue-800 dark:text-blue-300 space-y-1">

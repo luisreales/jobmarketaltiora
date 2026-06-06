@@ -1,0 +1,104 @@
+<div class="p-6 max-w-screen-xl mx-auto">
+
+  <div class="mb-6">
+    <h1 class="text-xl font-semibold text-slate-800">Semantic Groups</h1>
+    <p class="text-slate-400 text-sm mt-0.5">Clusters grouped by semantic similarity via embeddings</p>
+  </div>
+
+  @if (loading) {
+    <div class="flex items-center justify-center py-32 text-slate-400 text-sm">Loading…</div>
+  }
+
+  @if (!loading && fallbackMode) {
+    <!-- Fallback banner -->
+    <div class="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 text-sm">
+      <svg class="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+      </svg>
+      <div>
+        <span class="font-medium text-amber-800">Showing industry-based grouping</span>
+        <span class="text-amber-700"> — semantic embeddings require <code class="bg-amber-100 px-1 rounded text-xs">EmbeddingModelId</code> in backend settings. Groups below are by industry.</span>
+      </div>
+    </div>
+  }
+
+  @if (!loading && !fallbackMode && !embeddingsAvailable && groups.length === 0) {
+    <!-- Empty state: no clusters at all -->
+    <div class="flex flex-col items-center justify-center py-24 border-2 border-dashed border-slate-200 rounded-2xl text-center">
+      <div class="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+        <svg class="w-7 h-7 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+        </svg>
+      </div>
+      <h2 class="text-base font-semibold text-slate-700 mb-1">No clusters to group yet</h2>
+      <p class="text-sm text-slate-400 max-w-sm">Run the clustering pipeline first to generate clusters, then configure embeddings for semantic grouping.</p>
+    </div>
+  }
+
+  @if (!loading && groups.length > 0) {
+    <div class="mb-3 flex items-center gap-3 text-xs text-slate-400">
+      <span>{{ groups.length }} groups</span>
+      <span>·</span>
+      <span>{{ totalClusters }} clusters total</span>
+    </div>
+
+    <div class="space-y-3">
+      @for (group of groups; track trackByGroup($index, group)) {
+        <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <!-- Group header -->
+          <div class="px-4 py-3 bg-slate-50/60 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              @if (embeddingsAvailable) {
+                <span class="font-mono text-xs text-sky-600 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded">
+                  {{ group.key.slice(0, 12) }}
+                </span>
+              } @else {
+                <span class="text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+                  {{ group.key }}
+                </span>
+              }
+              <span class="text-sm text-slate-500">
+                {{ group.clusters.length }} {{ group.clusters.length === 1 ? 'cluster' : 'clusters' }}
+              </span>
+              <span class="text-xs text-slate-400">· {{ group.totalJobs }} jobs</span>
+            </div>
+            <div class="text-xs text-slate-500">
+              Avg Priority V2: <span class="font-semibold text-slate-700">{{ group.avgPriorityV2 }}</span>
+            </div>
+          </div>
+
+          <!-- Clusters in group -->
+          <div class="divide-y divide-slate-100">
+            @for (cluster of group.clusters; track trackByCluster($index, cluster)) {
+              <div class="px-4 py-2.5 flex items-center gap-4">
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-medium text-slate-700 truncate">{{ cluster.label }}</div>
+                  <div class="text-xs text-slate-400 mt-0.5">
+                    {{ cluster.painCategory }} · {{ cluster.jobCount }} jobs
+                  </div>
+                </div>
+                <div class="flex items-center gap-5 flex-shrink-0 text-right">
+                  <div>
+                    <div class="text-[11px] text-slate-400">Priority V2</div>
+                    <div class="text-sm font-bold text-indigo-600">{{ cluster.priorityScoreV2 }}</div>
+                  </div>
+                  <div>
+                    <div class="text-[11px] text-slate-400">Revenue</div>
+                    <div class="text-sm font-semibold text-slate-600">{{ cluster.revenuePotential.toFixed(0) }}</div>
+                  </div>
+                  <div>
+                    <div class="text-[11px] text-slate-400">Type</div>
+                    <div class="text-xs text-slate-500">{{ cluster.opportunityType }}</div>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+</div>

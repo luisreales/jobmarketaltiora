@@ -109,7 +109,6 @@ public sealed class ClusterEngine(
                     Label               = label,
                     PainCategory        = members[0].PainCategory,
                     NormalizedTechStack = members[0].NormalizedTechStack,
-                    TechKeyPart         = members[0].TechTokensJson, // will be set below
                     Industry            = members[0].Industry,
                     CompanyType         = signals.CompanyType,
                     JobCount            = signals.JobCount,
@@ -131,9 +130,6 @@ public sealed class ClusterEngine(
                     LastUpdatedAt       = now,
                     EngineVersion       = "cluster-v1"
                 };
-
-                // Build TechKeyPart from the first member's tokens
-                cluster.TechKeyPart = BuildTechKeyPart(members[0].NormalizedTechStack);
 
                 dbContext.MarketClusters.Add(cluster);
                 existingClusters[clusterKey] = cluster;
@@ -276,6 +272,11 @@ public sealed class ClusterEngine(
                       + urgencyNorm * 0.10
                       + buyingPower * 0.10
                       + easeOfSale  * 0.10;
+
+        // Confidence penalty: clusters with few jobs score lower regardless of other signals.
+        // log1p(10) ≈ 2.398 → clusters with ≥10 jobs reach confidence=1.0 (no penalty).
+        var confidence = Math.Min(1.0, Math.Log(1 + signals.JobCount) / Math.Log(11));
+        blueOcean *= confidence;
 
         return new ClusterScores(
             BuyingPower: Math.Round(buyingPower, 1),

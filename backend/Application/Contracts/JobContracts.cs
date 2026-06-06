@@ -1,6 +1,6 @@
 namespace backend.Application.Contracts;
 
-public record ProviderLoginRequest(string Provider, string Username, string Password);
+public record ProviderLoginRequest(string Provider, string Username, string Password, bool ShowBrowser = false);
 
 public record ProviderAuthStatusResponse(string Provider, bool IsAuthenticated, DateTime? LastLoginAt, DateTime? LastUsedAt, DateTime? ExpiresAt);
 
@@ -12,9 +12,10 @@ public record JobSearchRequest(
     int? TotalPaging = null,
     int? StartPage = null,
     int? EndPage = null,
-    bool ShowBrowser = false);
+    bool ShowBrowser = false,
+    string? AnalysisPromptKey = null);
 
-public record JobSearchResponse(int SavedCount, int TotalFound, DateTime ExecutedAtUtc);
+public record JobSearchResponse(int SavedCount, int TotalFound, DateTime ExecutedAtUtc, string? ActiveAnalysisPromptKey = null);
 
 public class JobsQueryRequest
 {

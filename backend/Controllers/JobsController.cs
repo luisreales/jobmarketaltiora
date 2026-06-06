@@ -2,6 +2,7 @@ using backend.Application.Contracts;
 using backend.Application.Interfaces;
 using backend.Domain.Entities;
 using backend.Infrastructure.Data;
+using backend.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,7 +34,9 @@ public class JobsController(
                 request.EndPage,
                 cancellationToken: cts.Token);
 
-            return Ok(new JobSearchResponse(savedCount, totalFound, DateTime.UtcNow));
+            var activeKey = await ActivateAnalysisPromptAsync(request.AnalysisPromptKey, cts.Token);
+
+            return Ok(new JobSearchResponse(savedCount, totalFound, DateTime.UtcNow, activeKey));
         }
         catch (InvalidOperationException ex)
         {
@@ -126,6 +129,8 @@ public class JobsController(
                 request.ShowBrowser,
                 cancellationToken);
 
+            var activeKey = await ActivateAnalysisPromptAsync(request.AnalysisPromptKey, cancellationToken);
+
             var jobs = await orchestrator.GetJobsAsync(cancellationToken);
             var touched = jobs
                 .Where(x => x.Source.Equals("upwork", StringComparison.OrdinalIgnoreCase) &&
@@ -151,6 +156,7 @@ public class JobsController(
                 mode = "login-and-scrape",
                 savedCount,
                 totalFound,
+                activeAnalysisPromptKey = activeKey,
                 touchedCount = touched.Count,
                 touched,
                 executedAtUtc = DateTime.UtcNow
@@ -565,6 +571,124 @@ public class JobsController(
     {
         var processed = await processingService.ProcessUnprocessedJobsAsync(cancellationToken, processAll: true);
         return Ok(new { message = "Processing triggered", processedCount = processed });
+    }
+
+    private async Task<string?> ActivateAnalysisPromptAsync(string? requestedKey, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(requestedKey)
+            || requestedKey == AiPromptTemplateKeys.MarketJobAnalysis)
+            return requestedKey;
+
+        var source = await dbContext.AiPromptTemplates
+            .FirstOrDefaultAsync(x => x.Key == requestedKey && x.IsActive, ct);
+        if (source is null) return AiPromptTemplateKeys.MarketJobAnalysis;
+
+        var target = await dbContext.AiPromptTemplates
+            .FirstOrDefaultAsync(x => x.Key == AiPromptTemplateKeys.MarketJobAnalysis, ct);
+
+        if (target is null)
+        {
+            dbContext.AiPromptTemplates.Add(new Domain.Entities.AiPromptTemplate
+            {
+                Key       = AiPromptTemplateKeys.MarketJobAnalysis,
+                Template  = source.Template,
+                Version   = source.Version,
+                IsActive  = true,
+                UpdatedBy = "scraping-api",
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            target.Template  = source.Template;
+            target.Version   = source.Version;
+            target.IsActive  = true;
+            target.UpdatedBy = "scraping-api";
+            target.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await dbContext.SaveChangesAsync(ct);
+        return AiPromptTemplateKeys.MarketJobAnalysis;
+    }
+
+    [HttpGet("jobs/quality")]
+    public async Task<ActionResult<object>> GetDataQuality(CancellationToken cancellationToken)
+    {
+        var totalJobs = await dbContext.JobOffers.CountAsync(cancellationToken);
+
+        var duplicateCount = await dbContext.JobOffers
+            .GroupBy(j => new { j.ExternalId, j.Source })
+            .Where(g => g.Count() > 1)
+            .SumAsync(g => g.Count() - 1, cancellationToken);
+
+        var staleThreshold = DateTime.UtcNow.AddDays(-30);
+        var staleCount = await dbContext.JobOffers
+            .CountAsync(j => !j.IsProcessed && j.CapturedAt < staleThreshold, cancellationToken);
+
+        var unprocessedCount = await dbContext.JobOffers
+            .CountAsync(j => !j.IsProcessed, cancellationToken);
+
+        return Ok(new
+        {
+            totalJobs,
+            duplicateCount,
+            staleUnprocessedCount = staleCount,
+            unprocessedCount,
+            cleanCount = totalJobs - duplicateCount - staleCount,
+        });
+    }
+
+    [HttpPost("jobs/purge")]
+    public async Task<ActionResult<object>> PurgeJobs(
+        [FromQuery] bool dryRun = false,
+        [FromQuery] int staleDays = 30,
+        CancellationToken cancellationToken = default)
+    {
+        // 1. Find duplicate rows (same ExternalId + Source) — keep the row with the highest Id.
+        // EF Core cannot translate OrderByDescending+Skip inside SelectMany on a GroupBy to SQL,
+        // so we fetch only (Id, ExternalId, Source) for duplicated keys and do the skip in memory.
+        var duplicatedKeys = await dbContext.JobOffers
+            .GroupBy(j => new { j.ExternalId, j.Source })
+            .Where(g => g.Count() > 1)
+            .Select(g => new { g.Key.ExternalId, g.Key.Source })
+            .ToListAsync(cancellationToken);
+
+        var duplicateIds = new List<int>();
+        foreach (var key in duplicatedKeys)
+        {
+            var ids = await dbContext.JobOffers
+                .Where(j => j.ExternalId == key.ExternalId && j.Source == key.Source)
+                .OrderByDescending(j => j.Id)
+                .Select(j => j.Id)
+                .Skip(1)
+                .ToListAsync(cancellationToken);
+            duplicateIds.AddRange(ids);
+        }
+
+        // 2. Find stale unprocessed jobs older than staleDays
+        var staleThreshold = DateTime.UtcNow.AddDays(-staleDays);
+        var staleIds = await dbContext.JobOffers
+            .Where(j => !j.IsProcessed && j.CapturedAt < staleThreshold)
+            .Select(j => j.Id)
+            .ToListAsync(cancellationToken);
+
+        var allToDelete = duplicateIds.Union(staleIds).Distinct().ToList();
+
+        if (!dryRun && allToDelete.Count > 0)
+        {
+            await dbContext.JobOffers
+                .Where(j => allToDelete.Contains(j.Id))
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+
+        return Ok(new
+        {
+            dryRun,
+            deletedDuplicates = duplicateIds.Count,
+            deletedStaleUnprocessed = staleIds.Count,
+            totalDeleted = allToDelete.Count,
+            staleDaysThreshold = staleDays,
+        });
     }
 
     private static string BuildDescriptionPreview(string? description)

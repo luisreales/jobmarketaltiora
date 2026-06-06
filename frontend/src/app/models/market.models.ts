@@ -108,12 +108,31 @@ export interface MarketCluster {
 
   // LLM synthesis
   synthesizedPain?: string;
+  synthesizedBusinessOpportunity?: string;
   synthesizedMvp?: string;
   synthesizedLeadMessage?: string;
+  llmConfidence?: number;
   mvpType?: string;
   estimatedBuildDays?: number;
   estimatedDealSizeUsd?: number;
   llmStatus: 'pending' | 'completed' | 'failed' | 'done' | 'needs_review' | 'skipped';
+
+  // Opportunity Engine V2
+  estimatedTam: number;
+  buyingIntentScore: number;
+  enterpriseComplexity: number;
+  hiringVelocity: number;
+  deliveryFeasibility: number;
+  salesFriction: number;
+  revenuePotential: number;
+  priorityScoreV2: number;
+  recommendedServiceModel?: string;
+  salesAngle?: string;
+  whyNow?: string;
+  estimatedCloseProbability: number;
+
+  // Semantic clustering
+  semanticGroupKey?: string;
 
   lastUpdatedAt: string;
 }
@@ -182,6 +201,12 @@ export interface ProductSuggestion {
   imageUrl?: string | null;
   // Lifecycle
   status: 'open' | 'closed';
+  // Sales pipeline
+  salesStatus: 'new' | 'contacted' | 'qualified' | 'won' | 'lost';
+  wonDealSizeUsd?: number | null;
+  contactedAt?: string | null;
+  closedAt?: string | null;
+  salesNotes?: string | null;
 }
 
 export interface UpdateProductRequest {

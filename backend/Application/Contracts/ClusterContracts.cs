@@ -50,12 +50,31 @@ public record MarketClusterDto(
 
     // LLM synthesis
     string? SynthesizedPain,
+    string? SynthesizedBusinessOpportunity,
     string? SynthesizedMvp,
     string? SynthesizedLeadMessage,
+    double? LlmConfidence,
     string? MvpType,
     int? EstimatedBuildDays,
     decimal? EstimatedDealSizeUsd,
     string LlmStatus,
+
+    // Opportunity Engine V2
+    double EstimatedTam,
+    double BuyingIntentScore,
+    double EnterpriseComplexity,
+    double HiringVelocity,
+    double DeliveryFeasibility,
+    double SalesFriction,
+    double RevenuePotential,
+    int PriorityScoreV2,
+    string? RecommendedServiceModel,
+    string? SalesAngle,
+    string? WhyNow,
+    double EstimatedCloseProbability,
+
+    // Semantic clustering
+    string? SemanticGroupKey,
 
     DateTime LastUpdatedAt);
 

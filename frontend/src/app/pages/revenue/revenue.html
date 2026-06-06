@@ -1,0 +1,202 @@
+<div class="p-6 max-w-screen-xl mx-auto">
+
+  <div class="mb-6">
+    <h1 class="text-xl font-semibold text-slate-800">Revenue Intelligence</h1>
+    <p class="text-slate-400 text-sm mt-0.5">Pipeline value, top opportunities, and conversion funnel from market data</p>
+  </div>
+
+  @if (loading) {
+    <div class="flex items-center justify-center py-32 text-slate-400 text-sm">Loading…</div>
+  }
+
+  @if (error) {
+    <div class="flex items-center justify-center py-32 text-red-400 text-sm">Failed to load revenue data. Make sure the pipeline has been run.</div>
+  }
+
+  @if (!loading && !error && summary) {
+
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div class="bg-white border border-green-200 rounded-xl px-4 py-4">
+        <div class="text-[11px] text-green-600 uppercase tracking-wide font-semibold mb-1">Total Pipeline</div>
+        <div class="text-2xl font-bold text-green-700">{{ summary.totalPipelineValueUsd | currency:'USD':'symbol':'1.0-0' }}</div>
+        <div class="text-xs text-slate-400 mt-1">weighted by close probability</div>
+      </div>
+      <div class="bg-white border border-indigo-200 rounded-xl px-4 py-4">
+        <div class="text-[11px] text-indigo-600 uppercase tracking-wide font-semibold mb-1">Actionable Clusters</div>
+        <div class="text-2xl font-bold text-indigo-700">{{ summary.totalActionableClusters }}</div>
+        <div class="text-xs text-slate-400 mt-1">avg close {{ (summary.avgCloseProbability * 100).toFixed(0) }}%</div>
+      </div>
+      <div class="bg-white border border-sky-200 rounded-xl px-4 py-4">
+        <div class="text-[11px] text-sky-600 uppercase tracking-wide font-semibold mb-1">Open Products</div>
+        <div class="text-2xl font-bold text-sky-700">{{ summary.openProducts }}</div>
+        <div class="text-xs text-slate-400 mt-1">of {{ summary.totalProducts }} total generated</div>
+      </div>
+      <div class="bg-white border border-amber-200 rounded-xl px-4 py-4">
+        <div class="text-[11px] text-amber-600 uppercase tracking-wide font-semibold mb-1">Avg Blue Ocean</div>
+        <div class="text-2xl font-bold text-amber-700">{{ summary.avgBlueOceanScore.toFixed(0) }}</div>
+        <div class="text-xs text-slate-400 mt-1">market opportunity signal</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+
+      <!-- Conversion Funnel -->
+      <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div class="px-4 py-3 bg-slate-50 border-b border-slate-100">
+          <h2 class="text-sm font-semibold text-slate-700">Conversion Funnel</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Jobs → pipeline</p>
+        </div>
+        <div class="px-4 py-3 space-y-3">
+          @let f = summary.conversionFunnel;
+          @let steps = [
+            { label: 'Total Jobs', value: f.totalJobs, total: f.totalJobs, color: 'bg-slate-400' },
+            { label: 'Analyzed', value: f.analyzedJobs, total: f.totalJobs, color: 'bg-blue-400' },
+            { label: 'Clustered', value: f.clusteredInsights, total: f.totalJobs, color: 'bg-indigo-400' },
+            { label: 'Actionable', value: f.actionableClusters, total: f.totalJobs, color: 'bg-violet-500' },
+            { label: 'Synthesized', value: f.synthesizedClusters, total: f.totalJobs, color: 'bg-purple-500' },
+            { label: 'Products', value: f.productsGenerated, total: f.totalJobs, color: 'bg-green-500' }
+          ];
+          @for (step of steps; track step.label) {
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-xs text-slate-600 font-medium">{{ step.label }}</span>
+                <span class="text-xs text-slate-500 tabular-nums">{{ step.value }} · {{ funnelPct(step.value, step.total) }}%</span>
+              </div>
+              <div class="h-2 rounded-full bg-slate-100">
+                <div class="h-2 rounded-full {{ step.color }}" [style.width.%]="funnelPct(step.value, step.total)"></div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Revenue by Service Model -->
+      <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div class="px-4 py-3 bg-slate-50 border-b border-slate-100">
+          <h2 class="text-sm font-semibold text-slate-700">Revenue by Service Model</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Weighted pipeline value</p>
+        </div>
+        @if (summary.byServiceModel.length === 0) {
+          <div class="px-4 py-8 text-center text-sm text-slate-400">No actionable clusters with deal estimates yet. Run LLM synthesis first.</div>
+        }
+        <div class="px-4 py-3 space-y-4">
+          @for (row of summary.byServiceModel; track row.serviceModel) {
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-xs px-1.5 py-0.5 rounded border font-medium {{ serviceModelColor(row.serviceModel) }}">{{ row.serviceModel }}</span>
+                <span class="text-xs font-semibold text-slate-700 tabular-nums">{{ row.weightedValueUsd | currency:'USD':'symbol':'1.0-0' }}</span>
+              </div>
+              <div class="h-2 rounded-full bg-slate-100">
+                <div class="h-2 rounded-full bg-indigo-400"
+                  [style.width.%]="barWidth(row.weightedValueUsd, maxServiceValue(summary.byServiceModel))"></div>
+              </div>
+              <div class="text-[10px] text-slate-400 mt-0.5">{{ row.clusterCount }} clusters · avg close {{ (row.avgCloseProbability * 100).toFixed(0) }}%</div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Revenue by Industry -->
+      <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div class="px-4 py-3 bg-slate-50 border-b border-slate-100">
+          <h2 class="text-sm font-semibold text-slate-700">Revenue by Industry</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Estimated TAM and pipeline value</p>
+        </div>
+        @if (summary.byIndustry.length === 0) {
+          <div class="px-4 py-8 text-center text-sm text-slate-400">No industry data yet.</div>
+        }
+        <div class="divide-y divide-slate-50">
+          @for (row of summary.byIndustry.slice(0, 8); track row.industry) {
+            <div class="px-4 py-2.5 flex items-center justify-between gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-slate-700 truncate">{{ row.industry }}</div>
+                <div class="text-[10px] text-slate-400">{{ row.clusterCount }} clusters · TAM ${{ row.tamMillionsUsd }}M</div>
+              </div>
+              <div class="text-right shrink-0">
+                <div class="text-sm font-bold text-slate-700">{{ row.estimatedValueUsd | currency:'USD':'symbol':'1.0-0' }}</div>
+                <div class="text-[10px] text-slate-400">{{ (row.avgCloseProbability * 100).toFixed(0) }}% close</div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Top Opportunities Table -->
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-700">Top Opportunities by Expected Value</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Ranked by deal size × close probability</p>
+        </div>
+      </div>
+
+      @if (summary.topOpportunities.length === 0) {
+        <div class="px-4 py-12 text-center text-sm text-slate-400">
+          No opportunities with deal estimates found.<br>
+          Run LLM synthesis on actionable clusters to populate this view.
+        </div>
+      }
+
+      @if (summary.topOpportunities.length > 0) {
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-100">
+                <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide">#</th>
+                <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Opportunity</th>
+                <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Model</th>
+                <th class="px-4 py-2.5 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Deal Size</th>
+                <th class="px-4 py-2.5 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Close %</th>
+                <th class="px-4 py-2.5 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Expected</th>
+                <th class="px-4 py-2.5 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">BOC</th>
+                <th class="px-4 py-2.5 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Product</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+              @for (opp of summary.topOpportunities; track trackByCluster($index, opp); let i = $index) {
+                <tr class="hover:bg-slate-50 transition-colors">
+                  <td class="px-4 py-2.5 text-xs text-slate-400 tabular-nums">{{ i + 1 }}</td>
+                  <td class="px-4 py-2.5 max-w-xs">
+                    <div class="text-sm font-medium text-slate-700 truncate">{{ opp.label }}</div>
+                    <div class="text-[11px] text-slate-400">{{ opp.industry }} · {{ opp.jobCount }} jobs</div>
+                  </td>
+                  <td class="px-4 py-2.5">
+                    <span class="text-xs px-1.5 py-0.5 rounded border font-medium {{ serviceModelColor(opp.serviceModel) }}">
+                      {{ opp.serviceModel }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-2.5 text-right text-sm font-medium text-slate-700 tabular-nums">
+                    {{ opp.estimatedDealSizeUsd | currency:'USD':'symbol':'1.0-0' }}
+                  </td>
+                  <td class="px-4 py-2.5 text-right text-sm tabular-nums">
+                    <span [class]="opp.closeProbability >= 0.5 ? 'text-green-600 font-semibold' : 'text-slate-500'">
+                      {{ (opp.closeProbability * 100).toFixed(0) }}%
+                    </span>
+                  </td>
+                  <td class="px-4 py-2.5 text-right text-sm font-bold text-green-700 tabular-nums">
+                    {{ opp.expectedValueUsd | currency:'USD':'symbol':'1.0-0' }}
+                  </td>
+                  <td class="px-4 py-2.5 text-right text-sm tabular-nums text-slate-600">
+                    {{ opp.blueOceanScore.toFixed(0) }}
+                  </td>
+                  <td class="px-4 py-2.5 text-center">
+                    @if (opp.hasProduct) {
+                      <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold">Yes</span>
+                    } @else {
+                      <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-400">No</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+
+  }
+
+</div>

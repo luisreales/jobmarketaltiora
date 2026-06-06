@@ -28,9 +28,6 @@ public class MarketCluster
     /// <summary>Canonical tech tokens sorted and joined: "AZURE, NET, SQL"</summary>
     public string NormalizedTechStack { get; set; } = string.Empty;
 
-    /// <summary>Top 3 canonical tokens joined by pipe for the key: "AZURE|NET|SQL"</summary>
-    public string TechKeyPart { get; set; } = string.Empty;
-
     public string Industry { get; set; } = "Unknown";
 
     /// <summary>DirectClient | Consulting | Mixed</summary>
@@ -93,8 +90,10 @@ public class MarketCluster
     // --- LLM synthesis (Fase 3) ---
 
     public string? SynthesizedPain { get; set; }
+    public string? SynthesizedBusinessOpportunity { get; set; }
     public string? SynthesizedMvp { get; set; }
     public string? SynthesizedLeadMessage { get; set; }
+    public double? LlmConfidence { get; set; }
 
     /// <summary>MVPProduct | QuickWin | Consulting — from LLM response</summary>
     public string? MvpType { get; set; }
@@ -102,8 +101,46 @@ public class MarketCluster
     public int? EstimatedBuildDays { get; set; }
     public decimal? EstimatedDealSizeUsd { get; set; }
 
-    /// <summary>pending | done | needs_review | skipped</summary>
+    /// <summary>pending | completed | failed</summary>
     public string LlmStatus { get; set; } = "pending";
+
+    // --- Opportunity Engine V2 output ---
+
+    /// <summary>Estimated Total Addressable Market in millions USD (rule-based lookup).</summary>
+    public double EstimatedTam { get; set; }
+
+    /// <summary>0–100. Composite signal of urgency + direct client ratio + growth rate.</summary>
+    public double BuyingIntentScore { get; set; }
+
+    /// <summary>0–100. Number of distinct tech tokens normalized to stack complexity.</summary>
+    public double EnterpriseComplexity { get; set; }
+
+    /// <summary>0–100. Jobs per week normalized (how fast the market is hiring).</summary>
+    public double HiringVelocity { get; set; }
+
+    /// <summary>0–100. Inverse of complexity weighted by known-stack coverage.</summary>
+    public double DeliveryFeasibility { get; set; }
+
+    /// <summary>0–100. Lower is better. Based on direct client ratio and company type.</summary>
+    public double SalesFriction { get; set; }
+
+    /// <summary>0–100. Composite of TAM, direct ratio and buying intent.</summary>
+    public double RevenuePotential { get; set; }
+
+    /// <summary>Priority score using V2 formula: BOC*0.35 + BuyingIntent*0.25 + Urgency*0.20 + Direct*0.10 + Growth*0.10</summary>
+    public int PriorityScoreV2 { get; set; }
+
+    /// <summary>Rule-based: "SaaS MVP" | "Fixed-Price Sprint" | "Retainer" | "Consulting"</summary>
+    public string? RecommendedServiceModel { get; set; }
+
+    /// <summary>Rule-based sales argument tailored to PainCategory + OpportunityType.</summary>
+    public string? SalesAngle { get; set; }
+
+    /// <summary>Rule-based urgency narrative based on GrowthRate + UrgencyScore.</summary>
+    public string? WhyNow { get; set; }
+
+    /// <summary>0.0–1.0. Estimated probability of closing a deal in this cluster.</summary>
+    public double EstimatedCloseProbability { get; set; }
 
     // --- Metadata ---
 
@@ -112,6 +149,13 @@ public class MarketCluster
 
     /// <summary>Engine version that produced this cluster (e.g. "cluster-v1").</summary>
     public string EngineVersion { get; set; } = "cluster-v1";
+
+    /// <summary>
+    /// Assigned by SemanticClusterEngine when two or more clusters share the same underlying problem
+    /// (centroid cosine similarity >= 0.82). Null when no semantic group has been detected.
+    /// Allows the UI to surface related clusters without merging them.
+    /// </summary>
+    public string? SemanticGroupKey { get; set; }
 
     // Navigation
     public ICollection<JobInsight> Insights { get; set; } = [];

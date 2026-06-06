@@ -1,13 +1,18 @@
 using backend.Application.Interfaces;
+using backend.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend.Infrastructure.Services;
 
 /// <summary>
-/// Worker 2/4 — Background service that orchestrates the cluster pipeline:
-///   1. ClusterEngine.RebuildClustersAsync()       — group insights → clusters + BlueOceanScore
-///   2. DecisionEngine.EvaluateClustersAsync()      — OpportunityType + IsActionable + PriorityScore
-///   3. ClusterSynthesisService (Fase 3)            — LLM synthesis for actionable clusters (not yet wired)
+/// Background service that orchestrates the full cluster intelligence pipeline:
+///   Stage 0  — SemanticClusterEngine.GenerateEmbeddingsAsync()  — embed insights (additive)
+///   Stage 1  — ClusterEngine.RebuildClustersAsync()             — SHA256 clustering + BlueOceanScore
+///   Stage 2  — DecisionEngine.EvaluateClustersAsync()           — OpportunityType + IsActionable
+///   Stage 2b — SemanticClusterEngine.AssignSemanticGroupsAsync()— semantic group keys (additive)
+///   Stage 3  — OpportunityEngineV2.EnrichClustersAsync()        — TAM, BuyingIntent, SalesAngle, etc.
+///   Stage 4  — ProductGeneratorService.GenerateProductsAsync()  — rule-based product consolidation
+///   Stage 5  — ClusterSynthesisService.SynthesizePendingClustersAsync() — LLM synthesis (batch 5)
 ///
 /// Only runs when new JobInsights have been processed since the last cycle.
 /// Interval is configurable via Jobs:Clustering:IntervalSeconds (default: 1800 = 30 minutes).
@@ -60,7 +65,7 @@ public sealed class ClusteringHostedService(
         using var scope = scopeFactory.CreateScope();
 
         // Check if there are new insights since last run to avoid wasted cycles
-        var dbContext = scope.ServiceProvider.GetRequiredService<backend.Infrastructure.Data.ApplicationDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var hasNewInsights = await dbContext.JobInsights
             .AsNoTracking()
             .AnyAsync(i => i.IsProcessed && i.ProcessedAt > _lastRunAt, cancellationToken);
@@ -72,6 +77,11 @@ public sealed class ClusteringHostedService(
         }
 
         logger.LogInformation("ClusteringHostedService: starting pipeline cycle. LastRun={LastRun}", _lastRunAt);
+
+        // Stage 0 — Semantic embeddings (additive, falls back silently if SK not configured)
+        var semanticEngine = scope.ServiceProvider.GetRequiredService<ISemanticClusterEngine>();
+        var embedded = await semanticEngine.GenerateEmbeddingsAsync(cancellationToken);
+        logger.LogInformation("ClusteringHostedService stage=SemanticEmbeddings embedded={Count}", embedded);
 
         // Stage 1 — Cluster Engine
         var clusterEngine = scope.ServiceProvider.GetRequiredService<IClusterEngine>();
@@ -85,21 +95,46 @@ public sealed class ClusteringHostedService(
 
         logger.LogInformation("ClusteringHostedService stage=DecisionEngine evaluated={Count}", evaluated);
 
-        // Stage 3 — Product Generator (rule-based, no LLM)
+        // Stage 2b — Semantic group assignment (additive, depends on embeddings from Stage 0)
+        var semanticGrouped = await semanticEngine.AssignSemanticGroupsAsync(ct: cancellationToken);
+        logger.LogInformation("ClusteringHostedService stage=SemanticGroups grouped={Count}", semanticGrouped);
+
+        // Stage 3 — Opportunity Engine V2 (commercial intelligence enrichment)
+        var opportunityEngineV2 = scope.ServiceProvider.GetRequiredService<IOpportunityEngineV2>();
+        var enriched = await opportunityEngineV2.EnrichClustersAsync(cancellationToken);
+
+        logger.LogInformation("ClusteringHostedService stage=OpportunityEngineV2 enriched={Count}", enriched);
+
+        // Stage 4 — Product Generator (rule-based, no LLM)
         var productGenerator = scope.ServiceProvider.GetRequiredService<IProductGeneratorService>();
         var productsGenerated = await productGenerator.GenerateProductsAsync(cancellationToken);
 
         logger.LogInformation("ClusteringHostedService stage=ProductGenerator productsGenerated={Count}", productsGenerated);
 
-        // Stage 4 (LLM Synthesis) is on-demand only — triggered from the UI per cluster.
-        // Use POST /api/market/clusters/{id}/synthesize to generate pain/mvp/leadMessage for a specific cluster.
+        // Stage 5 — LLM Synthesis (batch, up to 5 actionable pending clusters per cycle)
+        var synthesisService = scope.ServiceProvider.GetRequiredService<IClusterSynthesisService>();
+        await synthesisService.SynthesizePendingClustersAsync(cancellationToken);
+
+        logger.LogInformation("ClusteringHostedService stage=LLMSynthesis completed.");
+
+        // Stage 6 — Technology Intelligence rebuild (keeps tech scores current so Stage 3
+        // momentum boost uses fresh lifecycle signals on the next cycle)
+        var techIntelSvc = scope.ServiceProvider.GetRequiredService<ITechnologyIntelligenceService>();
+        await techIntelSvc.RebuildAsync(cancellationToken);
+        logger.LogInformation("ClusteringHostedService stage=TechnologyIntelligence completed.");
+
+        // Stage 7 — Company Intelligence rebuild (keeps prospect list current after new jobs)
+        var companyIntelSvc = scope.ServiceProvider.GetRequiredService<ICompanyIntelligenceService>();
+        await companyIntelSvc.RebuildAsync(cancellationToken);
+        logger.LogInformation("ClusteringHostedService stage=CompanyIntelligence completed.");
 
         _lastRunAt = DateTime.UtcNow;
 
         logger.LogInformation(
-            "ClusteringHostedService: pipeline complete. clusters={Clusters} evaluated={Evaluated} products={Products}",
+            "ClusteringHostedService: pipeline complete. clusters={Clusters} evaluated={Evaluated} enriched={Enriched} products={Products}",
             clustersUpdated,
             evaluated,
+            enriched,
             productsGenerated);
     }
 }

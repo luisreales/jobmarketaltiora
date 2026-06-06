@@ -401,6 +401,101 @@ namespace backend.Migrations
                     b.ToTable("CommercialStrategies");
                 });
 
+            modelBuilder.Entity("backend.Domain.Entities.CompanyProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<double>("AvgLeadScore")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("AvgOpportunityScore")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("AvgUrgencyScore")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("CompanyType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasDefaultValue("Unknown");
+
+                    b.Property<DateTime>("FirstSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("HasAiInitiative")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("HasCloudMigration")
+                        .HasColumnType("boolean");
+
+                    b.Property<double>("HiringVelocity")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("IsDirectClient")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("PrimaryIndustry")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasDefaultValue("Unknown");
+
+                    b.Property<double>("ProspectScore")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("TechStackJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("[]");
+
+                    b.Property<string>("TopPainCategory")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int>("TotalJobCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HasAiInitiative");
+
+                    b.HasIndex("IsDirectClient");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.HasIndex("PrimaryIndustry");
+
+                    b.HasIndex("ProspectScore");
+
+                    b.ToTable("CompanyProfiles");
+                });
+
             modelBuilder.Entity("backend.Domain.Entities.JobInsight", b =>
                 {
                     b.Property<int>("Id")
@@ -424,6 +519,12 @@ namespace backend.Migrations
                         .IsRequired()
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime?>("EmbeddedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EmbeddingVectorJson")
+                        .HasColumnType("text");
 
                     b.Property<string>("EngineVersion")
                         .IsRequired()
@@ -655,6 +756,9 @@ namespace backend.Migrations
                     b.Property<double>("BlueOceanScore")
                         .HasColumnType("double precision");
 
+                    b.Property<double>("BuyingIntentScore")
+                        .HasColumnType("double precision");
+
                     b.Property<double>("BuyingPowerScore")
                         .HasColumnType("double precision");
 
@@ -667,6 +771,9 @@ namespace backend.Migrations
                         .IsRequired()
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
+
+                    b.Property<double>("DeliveryFeasibility")
+                        .HasColumnType("double precision");
 
                     b.Property<int>("DirectClientCount")
                         .HasColumnType("integer");
@@ -682,17 +789,29 @@ namespace backend.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
+                    b.Property<double>("EnterpriseComplexity")
+                        .HasColumnType("double precision");
+
                     b.Property<int?>("EstimatedBuildDays")
                         .HasColumnType("integer");
+
+                    b.Property<double>("EstimatedCloseProbability")
+                        .HasColumnType("double precision");
 
                     b.Property<decimal?>("EstimatedDealSizeUsd")
                         .HasPrecision(12, 2)
                         .HasColumnType("numeric(12,2)");
 
+                    b.Property<double>("EstimatedTam")
+                        .HasColumnType("double precision");
+
                     b.Property<DateTime>("FirstSeenAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<double>("GrowthRate")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("HiringVelocity")
                         .HasColumnType("double precision");
 
                     b.Property<string>("Industry")
@@ -713,6 +832,9 @@ namespace backend.Migrations
 
                     b.Property<DateTime>("LastUpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("LlmConfidence")
+                        .HasColumnType("double precision");
 
                     b.Property<string>("LlmStatus")
                         .IsRequired()
@@ -744,13 +866,34 @@ namespace backend.Migrations
                     b.Property<int>("PriorityScore")
                         .HasColumnType("integer");
 
+                    b.Property<int>("PriorityScoreV2")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RecommendedServiceModel")
+                        .HasColumnType("text");
+
                     b.Property<string>("RecommendedStrategy")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<double>("RevenuePotential")
+                        .HasColumnType("double precision");
+
                     b.Property<int>("RoiRank")
                         .HasColumnType("integer");
+
+                    b.Property<string>("SalesAngle")
+                        .HasColumnType("text");
+
+                    b.Property<double>("SalesFriction")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("SemanticGroupKey")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SynthesizedBusinessOpportunity")
+                        .HasColumnType("text");
 
                     b.Property<string>("SynthesizedLeadMessage")
                         .HasColumnType("text");
@@ -761,10 +904,8 @@ namespace backend.Migrations
                     b.Property<string>("SynthesizedPain")
                         .HasColumnType("text");
 
-                    b.Property<string>("TechKeyPart")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
+                    b.Property<string>("WhyNow")
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -994,6 +1135,9 @@ namespace backend.Migrations
                     b.Property<double>("AvgUrgencyScore")
                         .HasColumnType("double precision");
 
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("ClusterCount")
                         .HasColumnType("integer");
 
@@ -1002,6 +1146,9 @@ namespace backend.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text")
                         .HasDefaultValue("[]");
+
+                    b.Property<DateTime?>("ContactedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("EstimatedBuildDays")
                         .HasColumnType("integer");
@@ -1060,6 +1207,16 @@ namespace backend.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("SalesNotes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SalesStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("new");
+
                     b.Property<string>("SourceIdeaId")
                         .HasColumnType("text");
 
@@ -1092,6 +1249,10 @@ namespace backend.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<decimal?>("WonDealSizeUsd")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("GeneratedAt");
@@ -1104,6 +1265,8 @@ namespace backend.Migrations
 
                     b.HasIndex("ProductName")
                         .IsUnique();
+
+                    b.HasIndex("SalesStatus");
 
                     b.HasIndex("Status");
 
@@ -1148,6 +1311,178 @@ namespace backend.Migrations
                         .IsUnique();
 
                     b.ToTable("ProviderSessions");
+                });
+
+            modelBuilder.Entity("backend.Domain.Entities.Technology", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<double>("AvgLeadScore")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("AvgUrgency")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<int>("ClusterCoverageCount")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("CompetitionScore")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("DemandScore")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<double>("EmergingScore")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("FirstSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("GrowthRate")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("IndustryCoverageCount")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsAiRelated")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsCloudRelated")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsLegacy")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LifecycleStage")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<double>("MomentumScore")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<double>("OpportunityScore")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("TotalMentions")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("WeeklyMentions")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Category");
+
+                    b.HasIndex("IsAiRelated");
+
+                    b.HasIndex("LifecycleStage");
+
+                    b.HasIndex("MomentumScore");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Technologies");
+                });
+
+            modelBuilder.Entity("backend.Domain.Entities.TechnologyRelationship", b =>
+                {
+                    b.Property<int>("SourceTechnologyId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TargetTechnologyId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("AiAffinity")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("CoOccurrenceCount")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("CorrelationScore")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("IndustryAffinity")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("OpportunityAffinity")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("SourceTechnologyId", "TargetTechnologyId");
+
+                    b.HasIndex("TargetTechnologyId");
+
+                    b.ToTable("TechnologyRelationships");
+                });
+
+            modelBuilder.Entity("backend.Domain.Entities.TechnologyTrendSnapshot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<double>("AvgOpportunityScore")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("MentionCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("SnapshotWeek")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("TechnologyId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UniqueJobCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SnapshotWeek");
+
+                    b.HasIndex("TechnologyId", "SnapshotWeek")
+                        .IsUnique();
+
+                    b.ToTable("TechnologyTrendSnapshots");
                 });
 
             modelBuilder.Entity("backend.Domain.Entities.AiPromptLog", b =>
@@ -1279,6 +1614,36 @@ namespace backend.Migrations
                     b.Navigation("Opportunity");
                 });
 
+            modelBuilder.Entity("backend.Domain.Entities.TechnologyRelationship", b =>
+                {
+                    b.HasOne("backend.Domain.Entities.Technology", "SourceTechnology")
+                        .WithMany("SourceRelationships")
+                        .HasForeignKey("SourceTechnologyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("backend.Domain.Entities.Technology", "TargetTechnology")
+                        .WithMany()
+                        .HasForeignKey("TargetTechnologyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SourceTechnology");
+
+                    b.Navigation("TargetTechnology");
+                });
+
+            modelBuilder.Entity("backend.Domain.Entities.TechnologyTrendSnapshot", b =>
+                {
+                    b.HasOne("backend.Domain.Entities.Technology", "Technology")
+                        .WithMany("Snapshots")
+                        .HasForeignKey("TechnologyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Technology");
+                });
+
             modelBuilder.Entity("backend.Domain.Entities.AppSumoCategory", b =>
                 {
                     b.Navigation("Products");
@@ -1301,6 +1666,13 @@ namespace backend.Migrations
                     b.Navigation("Ideas");
 
                     b.Navigation("Products");
+                });
+
+            modelBuilder.Entity("backend.Domain.Entities.Technology", b =>
+                {
+                    b.Navigation("Snapshots");
+
+                    b.Navigation("SourceRelationships");
                 });
 #pragma warning restore 612, 618
         }

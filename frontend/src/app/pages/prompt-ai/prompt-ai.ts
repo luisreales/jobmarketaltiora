@@ -6,6 +6,21 @@ import { PromptAiService } from '../../services/prompt-ai.service';
 
 type ViewMode = 'list' | 'create' | 'edit';
 
+const SYSTEM_KEYS: Record<string, { label: string; description: string }> = {
+  'market-job-analysis': {
+    label: 'Job AI Enrichment',
+    description: 'Used by the AI worker to extract pain_point, business_opportunity, and confidence from every scraped job description.',
+  },
+  'cluster-synthesis': {
+    label: 'Cluster LLM Synthesis',
+    description: 'System prompt for the ClusterSynthesisService — generates pain, businessOpportunity, mvp, and leadMessage per market cluster.',
+  },
+  'product-synthesis': {
+    label: 'Product Tactical Plan',
+    description: 'System prompt for the ProductSynthesisService — generates implementacion, requerimientos, tiempo_y_tecnologias, and empresas_objetivo per product.',
+  },
+};
+
 @Component({
   selector: 'app-prompt-ai',
   standalone: true,
@@ -14,6 +29,8 @@ type ViewMode = 'list' | 'create' | 'edit';
 })
 export class PromptAi implements OnInit {
   private readonly service = inject(PromptAiService);
+
+  readonly systemKeys = SYSTEM_KEYS;
 
   // List state
   templates: AiPromptTemplate[] = [];
@@ -160,5 +177,13 @@ export class PromptAi implements OnInit {
     return isActive
       ? 'bg-green-100 text-green-700'
       : 'bg-slate-100 text-slate-500';
+  }
+
+  isSystemKey(key: string): boolean {
+    return key in SYSTEM_KEYS;
+  }
+
+  systemKeyMeta(key: string) {
+    return SYSTEM_KEYS[key] ?? null;
   }
 }

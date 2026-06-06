@@ -1,0 +1,101 @@
+<div class="p-6 max-w-screen-xl mx-auto">
+
+  <div class="mb-5 flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <h1 class="text-xl font-semibold text-slate-800">Stack Graph</h1>
+      <p class="text-slate-400 text-sm mt-0.5">Technology co-occurrence relationships from job market data</p>
+    </div>
+    <!-- Legend -->
+    <div class="flex items-center gap-3 flex-wrap">
+      @for (item of stageLegend; track item.stage) {
+        <div class="flex items-center gap-1.5">
+          <div class="w-2.5 h-2.5 rounded-full" [style.background]="item.color"></div>
+          <span class="text-xs text-slate-500">{{ item.stage }}</span>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Category filter pills -->
+  <div class="mb-4 flex flex-wrap gap-2">
+    @for (cat of categories; track cat) {
+      <button
+        (click)="setCategory(cat)"
+        [class.bg-indigo-600]="selectedCategory === cat"
+        [class.text-white]="selectedCategory === cat"
+        [class.bg-white]="selectedCategory !== cat"
+        [class.text-slate-600]="selectedCategory !== cat"
+        class="px-3 py-1 rounded-full text-xs font-medium border border-slate-200 hover:border-indigo-300 transition">
+        {{ cat || 'All' }}
+      </button>
+    }
+  </div>
+
+  @if (loading) {
+    <div class="flex items-center justify-center py-32 text-slate-400 text-sm">Loading graph…</div>
+  }
+
+  @if (error) {
+    <div class="flex items-center justify-center py-32 text-slate-400 text-sm">
+      Failed to load graph. Run a rebuild first.
+    </div>
+  }
+
+  @if (!loading && !error) {
+    <div class="flex gap-5">
+
+      <!-- Graph area -->
+      <div class="flex-1 bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div #svgContainer class="w-full" style="height: 580px;"></div>
+      </div>
+
+      <!-- Selected tech panel -->
+      @if (selectedTech) {
+        <div class="w-64 bg-white border border-slate-200 rounded-xl p-4 flex-shrink-0 self-start">
+          <div class="text-base font-semibold text-slate-800 mb-0.5">{{ selectedTech.displayName }}</div>
+          <div class="text-xs font-mono text-slate-400 mb-3">{{ selectedTech.name }}</div>
+
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-slate-500">Category</span>
+              <span class="font-medium text-slate-700">{{ selectedTech.category }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Stage</span>
+              <span class="font-medium text-slate-700">{{ selectedTech.lifecycleStage }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Mentions</span>
+              <span class="font-semibold text-slate-800 tabular-nums">{{ selectedTech.totalMentions }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Opportunity</span>
+              <span class="font-bold text-indigo-600 tabular-nums">{{ selectedTech.opportunityScore.toFixed(0) }}</span>
+            </div>
+            @if (selectedTech.isAiRelated) {
+              <div class="mt-2 bg-purple-50 border border-purple-100 rounded-lg px-3 py-2 text-xs text-purple-700 font-medium">
+                AI-related technology
+              </div>
+            }
+          </div>
+
+          <button
+            (click)="selectedTech = null"
+            class="mt-4 w-full text-xs text-slate-400 hover:text-slate-600 transition">
+            Deselect
+          </button>
+        </div>
+      } @else {
+        <div class="w-64 bg-slate-50 border border-dashed border-slate-200 rounded-xl p-4 flex-shrink-0 flex items-center justify-center self-start">
+          <p class="text-xs text-slate-400 text-center">Click a node to see technology details</p>
+        </div>
+      }
+
+    </div>
+
+    <p class="mt-3 text-xs text-slate-400 text-center">
+      Node size = demand · Edge thickness = correlation · Scroll to zoom · Drag to pan · Click node for details
+    </p>
+  }
+
+</div>

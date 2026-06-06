@@ -108,9 +108,10 @@ public sealed class ProductSynthesisService(
 
         try
         {
+            var systemPrompt = await ResolveSystemPromptAsync(ct);
             var chat    = kernel.GetRequiredService<IChatCompletionService>();
             var history = new ChatHistory();
-            history.AddSystemMessage(SystemPrompt);
+            history.AddSystemMessage(systemPrompt);
             history.AddUserMessage(promptText);
 
             var (content, selectedModel, plan) = await GetSynthesisWithFallbackAsync(chat, history, ct);
@@ -235,6 +236,15 @@ public sealed class ProductSynthesisService(
             PromptVersion: templateConfig.Version,
             ClusterIds: clusterIds,
             PrimaryClusterId: clusterIds.FirstOrDefault());
+    }
+
+    private async Task<string> ResolveSystemPromptAsync(CancellationToken ct)
+    {
+        var dbTemplate = await dbContext.AiPromptTemplates
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Key == AiPromptTemplateKeys.ProductSynthesis && x.IsActive, ct);
+
+        return string.IsNullOrWhiteSpace(dbTemplate?.Template) ? SystemPrompt : dbTemplate.Template;
     }
 
     private async Task<(string Template, string Version)> ResolvePromptTemplateAsync(CancellationToken ct)

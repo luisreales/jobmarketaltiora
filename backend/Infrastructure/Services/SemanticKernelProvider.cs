@@ -23,6 +23,17 @@ public sealed class SemanticKernelProvider(
         }
     }
 
+    public bool IsEmbeddingConfigured
+    {
+        get
+        {
+            var cfg = options.Value;
+            return cfg.Enabled
+                   && !string.IsNullOrWhiteSpace(cfg.EmbeddingModelId)
+                   && !string.IsNullOrWhiteSpace(ResolveApiKey(cfg));
+        }
+    }
+
     public Kernel GetKernel()
     {
         if (kernel is not null)
@@ -51,8 +62,6 @@ public sealed class SemanticKernelProvider(
         }
         else
         {
-            // Use a dedicated HttpClient with an extended timeout.
-            // Default 100 s is too short for large LLM responses (Claude, GPT-4, etc.).
             var timeoutSeconds = cfg.TimeoutSeconds > 0 ? cfg.TimeoutSeconds : 300;
             var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(timeoutSeconds) };
 
@@ -61,6 +70,20 @@ public sealed class SemanticKernelProvider(
                 apiKey: apiKey,
                 endpoint: new Uri(endpoint),
                 httpClient: httpClient);
+
+            // Register embedding model if configured (e.g. text-embedding-3-small).
+            // AddOpenAITextEmbeddingGeneration only supports the standard OpenAI endpoint.
+            if (!string.IsNullOrWhiteSpace(cfg.EmbeddingModelId) && provider == "OpenAI")
+            {
+                builder.AddOpenAITextEmbeddingGeneration(
+                    modelId: cfg.EmbeddingModelId,
+                    apiKey: apiKey,
+                    httpClient: httpClient);
+
+                logger.LogInformation(
+                    "Semantic Kernel embeddings configured. EmbeddingModel={EmbeddingModelId}",
+                    cfg.EmbeddingModelId);
+            }
 
             logger.LogInformation(
                 "Semantic Kernel configured. Provider={Provider}, ModelId={ModelId}, Endpoint={Endpoint}, TimeoutSeconds={Timeout}",

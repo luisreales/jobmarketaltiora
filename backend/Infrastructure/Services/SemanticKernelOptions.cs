@@ -15,6 +15,14 @@ public sealed class SemanticKernelOptions
     /// Increase if using large context windows or slow models.
     /// </summary>
     public int TimeoutSeconds { get; set; } = 300;
+
+    /// <summary>
+    /// Model ID for text embedding generation. Optional.
+    /// Only used when Provider=OpenAI (or compatible).
+    /// Example: "text-embedding-3-small"
+    /// Leave empty to disable semantic clustering.
+    /// </summary>
+    public string EmbeddingModelId { get; set; } = string.Empty;
 }
 
 public sealed class SemanticKernelApiKeysOptions

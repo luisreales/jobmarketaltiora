@@ -12,8 +12,16 @@ export const routes: Routes = [
 	{ path: 'mvp-requirements', loadComponent: () => import('./pages/mvp-requirements/mvp-requirements').then((m) => m.MvpRequirements) },
 	{ path: 'ai-audit', loadComponent: () => import('./pages/ai-audit/ai-audit').then((m) => m.AiAudit) },
 	{ path: 'prompt-ai', loadComponent: () => import('./pages/prompt-ai/prompt-ai').then((m) => m.PromptAi) },
+	{ path: 'intelligence', loadComponent: () => import('./pages/intelligence/intelligence').then((m) => m.IntelligencePage) },
+	{ path: 'clusters', loadComponent: () => import('./pages/clusters/clusters').then((m) => m.ClustersPage) },
+	{ path: 'semantic-groups', loadComponent: () => import('./pages/semantic-groups/semantic-groups').then((m) => m.SemanticGroupsPage) },
 	{ path: 'scraping', loadComponent: () => import('./pages/scraping/scraping').then((m) => m.ScrapingComponent) },
 	{ path: 'appsumo', loadComponent: () => import('./pages/appsumo/appsumo').then((m) => m.AppSumoPage) },
+	{ path: 'technologies', loadComponent: () => import('./pages/technologies/technologies').then((m) => m.TechnologiesPage) },
+	{ path: 'trends', loadComponent: () => import('./pages/trends/trends').then((m) => m.TrendsPage) },
+	{ path: 'stack-graph', loadComponent: () => import('./pages/stack-graph/stack-graph').then((m) => m.StackGraphPage) },
+	{ path: 'revenue', loadComponent: () => import('./pages/revenue/revenue').then((m) => m.RevenuePage) },
+	{ path: 'companies', loadComponent: () => import('./pages/companies/companies').then((m) => m.CompaniesPage) },
 	{ path: 'jobs/:id', loadComponent: () => import('./pages/job-detail/job-detail').then((m) => m.JobDetail) },
 	{ path: '**', redirectTo: 'jobs' }
 ];

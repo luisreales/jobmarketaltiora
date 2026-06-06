@@ -6,13 +6,13 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: jobmarketaltiora_db
+      POSTGRES_DB: jobmarketaltiora_v2
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d jobmarketaltiora_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d jobmarketaltiora_v2"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,7 +31,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=jobmarketaltiora_db;Username=postgres;Password=postgres
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=jobmarketaltiora_v2;Username=postgres;Password=postgres
       Jobs__Playwright__LoginHeadless: "true"
       Jobs__Credentials__LinkedIn__Username: ${LINKEDIN_USERNAME}
       Jobs__Credentials__LinkedIn__Password: ${LINKEDIN_PASSWORD}
@@ -48,7 +48,7 @@ services:
       Jobs__MarketIntelligence__MinDescriptionLength: ${JOBS_MARKET_MIN_DESCRIPTION_LENGTH:-1}
       Jobs__MarketIntelligence__MaxCallsPerDay: ${JOBS_MARKET_MAX_CALLS_PER_DAY:-10000}
       Jobs__MarketIntelligence__PromptVersion: ${JOBS_MARKET_PROMPT_VERSION:-v1}
-      Jobs__MarketIntelligence__PromptTemplate: ${JOBS_MARKET_PROMPT_TEMPLATE}
+      Jobs__MarketIntelligence__PromptTemplate: "${JOBS_MARKET_PROMPT_TEMPLATE:-Analyze this job quickly and return one line: pain=<pain>;category=<category>;confidence=<0-1>. Title={{Title}}. Company={{Company}}. Description={{Description}}}"
       UpworkScraper__BaseUrl: ${UPWORK_SCRAPER_BASE_URL:-http://scraper-api:3000}
       UpworkScraper__TimeoutSeconds: "900"
     extra_hosts:

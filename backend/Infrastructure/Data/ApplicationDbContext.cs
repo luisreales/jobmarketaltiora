@@ -17,6 +17,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<CommercialStrategy> CommercialStrategies => Set<CommercialStrategy>();
     public DbSet<MvpRequirement> MvpRequirements => Set<MvpRequirement>();
 
+    // Technology Intelligence
+    public DbSet<Technology> Technologies => Set<Technology>();
+    public DbSet<TechnologyRelationship> TechnologyRelationships => Set<TechnologyRelationship>();
+    public DbSet<TechnologyTrendSnapshot> TechnologyTrendSnapshots => Set<TechnologyTrendSnapshot>();
+
+    // Revenue / Sales layer
+    public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
+
     // AppSumo scraper
     public DbSet<AppSumoCategory> AppSumoCategories => Set<AppSumoCategory>();
     public DbSet<AppSumoProduct> AppSumoProducts => Set<AppSumoProduct>();
@@ -98,7 +106,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.Label).HasMaxLength(300).IsRequired();
             entity.Property(e => e.PainCategory).HasMaxLength(80).IsRequired();
             entity.Property(e => e.NormalizedTechStack).HasMaxLength(400).IsRequired();
-            entity.Property(e => e.TechKeyPart).HasMaxLength(120).IsRequired();
             entity.Property(e => e.Industry).HasMaxLength(60).IsRequired();
             entity.Property(e => e.CompanyType).HasMaxLength(40).IsRequired();
             entity.Property(e => e.OpportunityType).HasMaxLength(40).IsRequired();
@@ -197,6 +204,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("open");
             entity.Property(e => e.OpportunityId);
             entity.Property(e => e.ImageUrl).HasMaxLength(1200);
+
+            // Sales pipeline tracking
+            entity.Property(e => e.SalesStatus).HasMaxLength(20).IsRequired().HasDefaultValue("new");
+            entity.Property(e => e.WonDealSizeUsd).HasPrecision(12, 2);
+            entity.Property(e => e.SalesNotes).HasColumnType("text");
+            entity.HasIndex(e => e.SalesStatus);
 
             entity.HasIndex(e => e.ProductName).IsUnique();
             entity.HasIndex(e => e.PriorityScore);
@@ -344,6 +357,46 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<Technology>(entity =>
+        {
+            entity.Property(e => e.Name).HasMaxLength(60).IsRequired();
+            entity.Property(e => e.DisplayName).HasMaxLength(80).IsRequired();
+            entity.Property(e => e.Category).HasMaxLength(40).IsRequired();
+            entity.Property(e => e.LifecycleStage).HasMaxLength(20).IsRequired();
+            entity.HasIndex(e => e.Name).IsUnique();
+            entity.HasIndex(e => e.Category);
+            entity.HasIndex(e => e.LifecycleStage);
+            entity.HasIndex(e => e.MomentumScore);
+            entity.HasIndex(e => e.IsAiRelated);
+        });
+
+        modelBuilder.Entity<TechnologyRelationship>(entity =>
+        {
+            entity.HasKey(e => new { e.SourceTechnologyId, e.TargetTechnologyId });
+            entity.Property(e => e.IndustryAffinity).HasMaxLength(60).IsRequired();
+
+            entity.HasOne(e => e.SourceTechnology)
+                .WithMany(t => t.SourceRelationships)
+                .HasForeignKey(e => e.SourceTechnologyId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.TargetTechnology)
+                .WithMany()
+                .HasForeignKey(e => e.TargetTechnologyId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TechnologyTrendSnapshot>(entity =>
+        {
+            entity.HasIndex(e => new { e.TechnologyId, e.SnapshotWeek }).IsUnique();
+            entity.HasIndex(e => e.SnapshotWeek);
+
+            entity.HasOne(e => e.Technology)
+                .WithMany(t => t.Snapshots)
+                .HasForeignKey(e => e.TechnologyId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<AiPromptTemplate>(entity =>
         {
             entity.Property(e => e.Key).HasMaxLength(120).IsRequired();
@@ -353,6 +406,22 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.UpdatedAt).IsRequired();
             entity.HasIndex(e => e.Key).IsUnique();
             entity.HasIndex(e => new { e.Key, e.IsActive });
+        });
+
+        modelBuilder.Entity<CompanyProfile>(entity =>
+        {
+            entity.Property(e => e.CompanyName).HasMaxLength(300).IsRequired();
+            entity.Property(e => e.NormalizedName).HasMaxLength(300).IsRequired();
+            entity.Property(e => e.CompanyType).HasMaxLength(40).IsRequired().HasDefaultValue("Unknown");
+            entity.Property(e => e.PrimaryIndustry).HasMaxLength(60).IsRequired().HasDefaultValue("Unknown");
+            entity.Property(e => e.TechStackJson).HasColumnType("text").IsRequired().HasDefaultValue("[]");
+            entity.Property(e => e.TopPainCategory).HasMaxLength(80).IsRequired();
+
+            entity.HasIndex(e => e.NormalizedName).IsUnique();
+            entity.HasIndex(e => e.PrimaryIndustry);
+            entity.HasIndex(e => e.ProspectScore);
+            entity.HasIndex(e => e.IsDirectClient);
+            entity.HasIndex(e => e.HasAiInitiative);
         });
     }
 }

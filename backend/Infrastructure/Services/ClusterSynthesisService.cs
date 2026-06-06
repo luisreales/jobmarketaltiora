@@ -21,22 +21,34 @@ namespace backend.Infrastructure.Services;
 public sealed class ClusterSynthesisService(
     ApplicationDbContext dbContext,
     ISemanticKernelProvider kernelProvider,
+    IJobDescriptionCleanerService descriptionCleaner,
     ILogger<ClusterSynthesisService> logger) : IClusterSynthesisService
 {
     private const int MaxClustersPerRun = 5;
-    private const int MaxJobDescriptionChars = 4_000;
 
     private const string SystemPromptTemplate =
         """
         Actúa como un Director de Estrategia B2B para una agencia de ingeniería de élite.
-        Analiza este grupo de vacantes tecnológicas de empresas de la industria {industry} que usan {techTop3}.
-        Tu objetivo es identificar el dolor de negocio común y empaquetar una solución (MVP/Auditoría) que podamos venderles hoy.
+
+        Analiza este grupo de vacantes tecnológicas de empresas del sector {industry} que usan {techTop3}.
+
+        Tu objetivo es hacer ingeniería inversa del problema empresarial real detrás de estas vacantes
+        y empaquetar una solución vendible inmediatamente.
+
         Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta, sin texto adicional, sin markdown, sin bloques de código:
         {
-          "pain": "Descripción clara de 2 líneas sobre el cuello de botella técnico y de negocio que sufren.",
-          "mvp": "Nombre y descripción de 2 líneas de un paquete de servicios ágil (ej. Auditoría en 7 días, Migración de x a y) para resolverlo.",
-          "leadMessage": "Un mensaje de cold email de 3 líneas, muy directo, ofreciendo este MVP al CTO."
+          "pain": "Cuello de botella técnico real en 2 líneas. Sé específico con el stack y el problema.",
+          "businessOpportunity": "Impacto empresarial concreto y por qué urge resolverlo ahora.",
+          "mvp": "Nombre y descripción de un servicio ágil (ej. Auditoría 7 días, Migración X→Y, Sprint de Integración).",
+          "leadMessage": "Cold email de 3 líneas para el CTO. Muy directo. Sin buzzwords. Con cifras o plazos concretos.",
+          "confidence": 0.0
         }
+
+        REGLAS ESTRICTAS:
+        - NO generar texto genérico ni buzzwords como "transformación digital" o "soluciones innovadoras"
+        - Inferir el problema real desde el stack técnico y las responsabilidades descritas
+        - confidence es 0.0–1.0 según qué tan claro es el problema común en el cluster
+        - Si el cluster mezcla problemas distintos, bajar confidence por debajo de 0.6
         """;
 
     // ── Batch mode ────────────────────────────────────────────────────────────
@@ -108,9 +120,10 @@ public sealed class ClusterSynthesisService(
 
         try
         {
+            var systemPrompt = await ResolveSystemPromptAsync(cluster, ct);
             var chat = kernel.GetRequiredService<IChatCompletionService>();
             var history = new ChatHistory();
-            history.AddSystemMessage(BuildSystemPrompt(cluster));
+            history.AddSystemMessage(systemPrompt);
             history.AddUserMessage(promptText);
 
             var result = await chat.GetChatMessageContentAsync(history, cancellationToken: ct);
@@ -119,11 +132,13 @@ public sealed class ClusterSynthesisService(
 
             var parsed = ParseLlmResponse(responseText);
 
-            cluster.SynthesizedPain        = parsed.Pain;
-            cluster.SynthesizedMvp         = parsed.Mvp;
-            cluster.SynthesizedLeadMessage  = parsed.LeadMessage;
-            cluster.LlmStatus              = "completed";
-            cluster.LastUpdatedAt          = DateTime.UtcNow;
+            cluster.SynthesizedPain               = parsed.Pain;
+            cluster.SynthesizedBusinessOpportunity = parsed.BusinessOpportunity;
+            cluster.SynthesizedMvp                = parsed.Mvp;
+            cluster.SynthesizedLeadMessage        = parsed.LeadMessage;
+            cluster.LlmConfidence                 = parsed.Confidence;
+            cluster.LlmStatus                     = "completed";
+            cluster.LastUpdatedAt                 = DateTime.UtcNow;
 
             SavePromptLog(cluster.Id, promptText, promptHash, responseText,
                 isSuccess: true, errorMessage: null, latencyMs: (int)sw.ElapsedMilliseconds);
@@ -156,22 +171,32 @@ public sealed class ClusterSynthesisService(
 
     // ── Prompt builders ───────────────────────────────────────────────────────
 
-    private static string BuildSystemPrompt(MarketCluster cluster) =>
-        SystemPromptTemplate
+    private async Task<string> ResolveSystemPromptAsync(MarketCluster cluster, CancellationToken ct)
+    {
+        var dbTemplate = await dbContext.AiPromptTemplates
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Key == AiPromptTemplateKeys.ClusterSynthesis && x.IsActive, ct);
+
+        var template = string.IsNullOrWhiteSpace(dbTemplate?.Template)
+            ? SystemPromptTemplate
+            : dbTemplate.Template;
+
+        return template
             .Replace("{industry}", cluster.Industry)
-            .Replace("{techTop3}", cluster.TechKeyPart.Replace("|", ", "));
+            .Replace("{techTop3}", cluster.NormalizedTechStack);
+    }
 
     private async Task<string> BuildPromptAsync(MarketCluster cluster, CancellationToken ct)
     {
-        var jobDescriptions = await dbContext.JobInsights
+        var jobs = await dbContext.JobInsights
             .AsNoTracking()
             .Where(i => i.ClusterId == cluster.Id)
             .OrderByDescending(i => i.LeadScore)
             .Take(5)
-            .Select(i => i.Job!.Description)
+            .Select(i => new { i.Job!.Description, i.Job.Company })
             .ToListAsync(ct);
 
-        if (jobDescriptions.Count == 0)
+        if (jobs.Count == 0)
         {
             return $"Cluster: {cluster.Label}\nPainCategory: {cluster.PainCategory}\nJobCount: {cluster.JobCount}";
         }
@@ -185,42 +210,28 @@ public sealed class ClusterSynthesisService(
         sb.AppendLine();
         sb.AppendLine("--- SAMPLE JOB DESCRIPTIONS ---");
 
-        foreach (var (desc, idx) in jobDescriptions.Select((d, i) => (d, i + 1)))
+        foreach (var (job, idx) in jobs.Select((j, i) => (j, i + 1)))
         {
+            var cleaned = descriptionCleaner.Clean(job.Description ?? string.Empty, job.Company ?? string.Empty);
             sb.AppendLine($"[JOB {idx}]");
-            sb.AppendLine(CleanDescription(desc));
+            sb.AppendLine(cleaned.CleanText);
             sb.AppendLine();
         }
 
+        // The cleaner already enforces per-description budget (4000 chars each).
+        // Cap the full prompt at 12 000 chars to stay within context limits.
         var result = sb.ToString();
-        return result.Length > MaxJobDescriptionChars ? result[..MaxJobDescriptionChars] : result;
-    }
-
-    // ── Text cleaning ─────────────────────────────────────────────────────────
-
-    private static readonly string[] FluffMarkers =
-    [
-        "beneficios", "que ofrecemos", "qué ofrecemos", "acerca de nosotros",
-        "about us", "somos una empresa", "horario", "ubicacion", "ubicación",
-        "relocalizacion", "formacion", "formación", "equal opportunity"
-    ];
-
-    private static string CleanDescription(string raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
-        var cleaned = new StringBuilder();
-        foreach (var line in raw.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var lower = line.ToLowerInvariant();
-            if (FluffMarkers.Any(f => lower.Contains(f))) break;
-            cleaned.AppendLine(line.Trim());
-        }
-        return cleaned.ToString().Trim();
+        return result.Length > 12_000 ? result[..12_000] : result;
     }
 
     // ── JSON parsing ──────────────────────────────────────────────────────────
 
-    private record SynthesisResult(string Pain, string Mvp, string LeadMessage);
+    private record SynthesisResult(
+        string Pain,
+        string BusinessOpportunity,
+        string Mvp,
+        string LeadMessage,
+        double Confidence);
 
     private static SynthesisResult ParseLlmResponse(string raw)
     {
@@ -233,16 +244,18 @@ public sealed class ClusterSynthesisService(
                 json = json[(firstNewline + 1)..lastFence].Trim();
         }
 
-        using var doc  = JsonDocument.Parse(json);
-        var root       = doc.RootElement;
-        var pain       = root.TryGetProperty("pain", out var p) ? p.GetString() ?? string.Empty : string.Empty;
-        var mvp        = root.TryGetProperty("mvp", out var m) ? m.GetString() ?? string.Empty : string.Empty;
-        var lead       = root.TryGetProperty("leadMessage", out var l) ? l.GetString() ?? string.Empty : string.Empty;
+        using var doc      = JsonDocument.Parse(json);
+        var root           = doc.RootElement;
+        var pain           = root.TryGetProperty("pain", out var p)               ? p.GetString() ?? string.Empty   : string.Empty;
+        var opportunity    = root.TryGetProperty("businessOpportunity", out var o) ? o.GetString() ?? string.Empty   : string.Empty;
+        var mvp            = root.TryGetProperty("mvp", out var m)                ? m.GetString() ?? string.Empty   : string.Empty;
+        var lead           = root.TryGetProperty("leadMessage", out var l)        ? l.GetString() ?? string.Empty   : string.Empty;
+        var confidence     = root.TryGetProperty("confidence", out var c)         ? c.GetDouble()                   : 0.0;
 
         if (string.IsNullOrWhiteSpace(pain) || string.IsNullOrWhiteSpace(mvp))
             throw new InvalidOperationException($"LLM response missing required fields. Raw: {raw[..Math.Min(200, raw.Length)]}");
 
-        return new SynthesisResult(pain, mvp, lead);
+        return new SynthesisResult(pain, opportunity, mvp, lead, Math.Clamp(confidence, 0.0, 1.0));
     }
 
     // ── Audit log ─────────────────────────────────────────────────────────────
@@ -281,7 +294,10 @@ public sealed class ClusterSynthesisService(
         c.AvgOpportunityScore, c.AvgUrgencyScore, c.GrowthRate,
         c.BlueOceanScore, c.RoiRank,
         c.OpportunityType, c.IsActionable, c.RecommendedStrategy, c.PriorityScore,
-        c.SynthesizedPain, c.SynthesizedMvp, c.SynthesizedLeadMessage,
-        c.MvpType, c.EstimatedBuildDays, c.EstimatedDealSizeUsd,
-        c.LlmStatus, c.LastUpdatedAt);
+        c.SynthesizedPain, c.SynthesizedBusinessOpportunity, c.SynthesizedMvp, c.SynthesizedLeadMessage,
+        c.LlmConfidence, c.MvpType, c.EstimatedBuildDays, c.EstimatedDealSizeUsd, c.LlmStatus,
+        c.EstimatedTam, c.BuyingIntentScore, c.EnterpriseComplexity, c.HiringVelocity,
+        c.DeliveryFeasibility, c.SalesFriction, c.RevenuePotential, c.PriorityScoreV2,
+        c.RecommendedServiceModel, c.SalesAngle, c.WhyNow, c.EstimatedCloseProbability,
+        c.SemanticGroupKey, c.LastUpdatedAt);
 }

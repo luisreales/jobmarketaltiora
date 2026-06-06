@@ -99,6 +99,20 @@ public class ProductSuggestion
     /// <summary>open | closed — set to "closed" by user via Mark as Closed button</summary>
     public string Status { get; set; } = "open";
 
+    // ── Sales Pipeline Tracking ───────────────────────────────────────────────
+
+    /// <summary>new | contacted | qualified | won | lost</summary>
+    public string SalesStatus { get; set; } = "new";
+
+    /// <summary>Actual deal size captured when SalesStatus = "won".</summary>
+    public decimal? WonDealSizeUsd { get; set; }
+
+    public DateTime? ContactedAt { get; set; }
+    public DateTime? ClosedAt { get; set; }
+
+    /// <summary>Free-text notes from the sales process.</summary>
+    public string? SalesNotes { get; set; }
+
     /// <summary>When this consolidated product was last generated/updated.</summary>
     public DateTime GeneratedAt { get; set; }
 

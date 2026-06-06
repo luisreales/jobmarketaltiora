@@ -16,45 +16,125 @@
   height: 100vh;
   border-right: 1px solid #e2e8f0;
   background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-  padding: 1.25rem 1rem;
+  padding: 1rem 0.75rem 1rem;
   z-index: 30;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .brand {
-  margin-bottom: 1.5rem;
-  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   color: #f8fafc;
+  flex-shrink: 0;
+  padding: 0 0.25rem;
 }
 
 .nav-links {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.15rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+.nav-divider {
+  border-top: 1px solid #1e293b;
+  margin: 0.5rem 0.25rem;
+}
+
+.nav-section {
+  margin-top: 0.15rem;
+}
+
+.nav-section-header {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.45rem 0.75rem 0.3rem;
+  width: 100%;
+
+  &:hover .nav-section-label {
+    color: #64748b;
+  }
+}
+
+.nav-section-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #475569;
+  transition: color 0.15s ease;
+}
+
+.chevron {
+  color: #334155;
+  flex-shrink: 0;
+  height: 0.8rem;
+  transition: transform 0.22s ease, color 0.15s ease;
+  width: 0.8rem;
+
+  &.is-open {
+    color: #475569;
+    transform: rotate(180deg);
+  }
+}
+
+.nav-section-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s ease;
+
+  &.is-open {
+    grid-template-rows: 1fr;
+  }
+}
+
+.nav-section-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  overflow: hidden;
+  padding-bottom: 0.1rem;
 }
 
 .nav-link {
   border: 1px solid transparent;
-  border-radius: 0.75rem;
-  color: #cbd5e1;
+  border-radius: 0.6rem;
+  color: #94a3b8;
   display: block;
-  font-size: 0.93rem;
-  font-weight: 600;
-  padding: 0.7rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.45rem 0.75rem;
   text-decoration: none;
-  transition: 0.2s ease;
+  transition: 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nav-link:hover {
+  background: rgba(255, 255, 255, 0.05);
   border-color: #334155;
-  color: #f8fafc;
+  color: #e2e8f0;
 }
 
 .nav-link.is-active {
   background: #1d4ed8;
   border-color: #1d4ed8;
   color: #ffffff;
+  font-weight: 600;
 }
 
 .content {

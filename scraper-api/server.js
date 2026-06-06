@@ -72,7 +72,10 @@ function ensureString(value) {
 
 function buildUpworkSearchUrl(query, page) {
   const encodedQuery = encodeURIComponent(query);
-  return `https://www.upwork.com/nx/search/jobs/?q=${encodedQuery}&page=${page}`;
+  // Page 1 uses no page param — matching Upwork's canonical URL so cookies apply cleanly
+  return page <= 1
+    ? `https://www.upwork.com/nx/search/jobs/?q=${encodedQuery}`
+    : `https://www.upwork.com/nx/search/jobs/?q=${encodedQuery}&page=${page}`;
 }
 
 function normalizeUpworkUrl(href) {
@@ -174,17 +177,26 @@ async function newBrowserSession(headless = UPWORK_HEADLESS) {
     ? [
       "--no-sandbox",
       "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage"
+      "--disable-dev-shm-usage",
+      "--disable-gpu"
     ]
     : [];
 
   // Visible Chrome only works outside Docker (no X11 display in containers)
   const effectiveHeadless = IS_CONTAINER ? true : headless;
 
-  return connect({
+  // Use CHROME_PATH env var if set (e.g. /usr/bin/chromium in the container)
+  // chrome-launcher uses `chromePath`, not `executablePath`
+  const customExecPath = process.env.CHROME_PATH || null;
+
+  const connectOptions = {
     headless: effectiveHeadless,
-    args: launchArgs
-  });
+    args: launchArgs,
+    customConfig: customExecPath ? { chromePath: customExecPath } : {},
+    turnstile: true,
+  };
+
+  return connect(connectOptions);
 }
 
 async function ensureAuthenticatedPage({ page }) {
@@ -346,12 +358,19 @@ app.post("/upwork/scrape", async (req, res) => {
   const query = ensureString(req.body?.query);
   const location = ensureString(req.body?.location) || "Remote";
   const startPage = Math.max(1, Number(req.body?.startPage || 1));
-  const endPageRequest = Number(req.body?.endPage || startPage);
-  const endPage = Math.max(startPage, Math.min(endPageRequest, 200));
-  const pageCount = endPage - startPage + 1;
   const requestedLimit = Number(req.body?.limit || 20);
-  // If endPage spans multiple pages, ensure limit doesn't stop the loop early
-  const limit = Math.max(requestedLimit, pageCount * 10);
+
+  // Upwork shows ~10 jobs per page. Auto-calculate endPage from limit when not
+  // explicitly provided so the scraper fetches enough pages to reach the requested limit.
+  const JOBS_PER_PAGE = 10;
+  const providedEndPage = req.body?.endPage != null ? Number(req.body.endPage) : 0;
+  const autoEndPage = providedEndPage > 0
+    ? providedEndPage
+    : startPage + Math.ceil(requestedLimit / JOBS_PER_PAGE) - 1;
+  const endPage = Math.max(startPage, Math.min(autoEndPage, 200));
+  const pageCount = endPage - startPage + 1;
+  // Ensure per-job limit never stops the page loop prematurely
+  const limit = Math.max(requestedLimit, pageCount * JOBS_PER_PAGE);
   const showBrowser = Boolean(req.body?.showBrowser);
   const headless = showBrowser ? false : UPWORK_HEADLESS;
 
@@ -382,10 +401,15 @@ app.post("/upwork/scrape", async (req, res) => {
     const byUrl = new Map();
     const pageDiagnostics = [];
 
+    let consecutiveEmptyPages = 0;
+
     for (let currentPage = startPage; currentPage <= endPage && jobs.length < limit; currentPage += 1) {
       const url = buildUpworkSearchUrl(query, currentPage);
+      console.log(`scrape: navigating to page ${currentPage}/${endPage} — ${url}`);
+
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Give the React SPA time to render the job list before polling for cards
+      await new Promise((resolve) => setTimeout(resolve, 1800));
 
       const currentUrl = (page.url() || "").toLowerCase();
       if (currentUrl.includes("/login") || currentUrl.includes("account-security")) {
@@ -406,7 +430,7 @@ app.post("/upwork/scrape", async (req, res) => {
         saveSessionToDisk();
 
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        await new Promise((resolve) => setTimeout(resolve, 1800));
       }
 
       const pageHtml = (await page.content()).toLowerCase();
@@ -427,10 +451,11 @@ app.post("/upwork/scrape", async (req, res) => {
         saveSessionToDisk();
 
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        await new Promise((resolve) => setTimeout(resolve, 1800));
       }
 
-      const waitResult = await waitForJobCards(page, 15000);
+      // Wait up to 25s for job cards — Upwork SPA can be slow to hydrate
+      const waitResult = await waitForJobCards(page, 25000);
       const cards = waitResult.cards;
       pageDiagnostics.push({
         page: currentPage,
@@ -439,9 +464,18 @@ app.post("/upwork/scrape", async (req, res) => {
         cardCount: cards.length
       });
 
+      console.log(`scrape: page ${currentPage} — ${cards.length} cards found (selector: ${waitResult.selector})`);
+
       if (!cards.length) {
+        consecutiveEmptyPages++;
+        // Two consecutive pages with no cards = search results exhausted, stop early
+        if (consecutiveEmptyPages >= 2) {
+          console.log("scrape: 2 consecutive empty pages, stopping early.");
+          break;
+        }
         continue;
       }
+      consecutiveEmptyPages = 0;
 
       for (let index = 0; index < cards.length && jobs.length < limit; index += 1) {
         const card = cards[index];
@@ -489,13 +523,17 @@ app.post("/upwork/scrape", async (req, res) => {
       }
     }
 
+    console.log(`scrape: done — ${jobs.length} jobs collected across ${pageDiagnostics.length} pages`);
+
     return res.json({
       isAuthenticated: true,
       sessionToken,
       jobs,
       diagnostics: {
         pages: pageDiagnostics,
-        totalPagesVisited: pageDiagnostics.length
+        totalPagesVisited: pageDiagnostics.length,
+        totalJobsCollected: jobs.length,
+        pagesRequested: { start: startPage, end: endPage },
       }
     });
   } catch (error) {

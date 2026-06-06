@@ -5,13 +5,15 @@ namespace backend.Infrastructure.Services;
 /// <summary>
 /// Computes a composite LeadScore (0–100) per JobInsight.
 /// Formula:
-///   LeadScore = OpportunityScore * 0.40
-///             + UrgencyScore * 5 * 0.20      (UrgencyScore is 1–10, scaled to 0–50 then weighted)
+///   LeadScore = (OpportunityScore * 0.40
+///             + UrgencyScore * 5 * 0.20
 ///             + DirectClientBonus             (20 if IsDirectClient, else 0)
-///             + RecencyBoost * 0.20           (0–100 based on age of the job posting)
+///             + RecencyBoost * 0.20)
+///             * ConsultingPenalty             (0.70 if consulting company, else 1.0)
 ///
-/// This score is used to rank leads within a cluster (not to rank clusters themselves —
-/// BlueOceanScore handles that in Fase 2).
+/// Consulting penalty reduces lead score by 30%: these are indirect clients for AltioraTech
+/// and harder to close than direct-client leads.
+/// BlueOceanScore handles cluster-level ranking in Fase 2.
 /// </summary>
 public sealed class LeadScoringService
 {
@@ -22,6 +24,8 @@ public sealed class LeadScoringService
     private const int StaleDays = 90;     // 31–90 days: linear decay 40→5
     // Older than StaleDays: 0 recency points
 
+    private const double ConsultingPenaltyMultiplier = 0.70;
+
     public int Calculate(JobInsight insight, DateTime? capturedAt = null)
     {
         var opportunityComponent = insight.OpportunityScore * 0.40;
@@ -30,7 +34,11 @@ public sealed class LeadScoringService
         var recencyBoost = ComputeRecencyBoost(capturedAt) * 0.20;
 
         var raw = opportunityComponent + urgencyComponent + directClientBonus + recencyBoost;
-        return (int)Math.Clamp(Math.Round(raw), 0, 100);
+
+        // Consulting companies are indirect clients — 30% score reduction
+        var multiplier = insight.IsDirectClient ? 1.0 : ConsultingPenaltyMultiplier;
+
+        return (int)Math.Clamp(Math.Round(raw * multiplier), 0, 100);
     }
 
     private static double ComputeRecencyBoost(DateTime? capturedAt)

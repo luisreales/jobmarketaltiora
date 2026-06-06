@@ -38,14 +38,22 @@ builder.Services.AddScoped<IJobProcessingService, JobProcessingService>();
 builder.Services.AddSingleton<TechCanonicalizer>();
 builder.Services.AddSingleton<IndustryClassifier>();
 builder.Services.AddScoped<JobPreprocessorService>();
+builder.Services.AddScoped<IJobDescriptionCleanerService, JobDescriptionCleanerService>();
 builder.Services.AddScoped<LeadScoringService>();
 builder.Services.AddScoped<RuleBasedAiEnrichmentService>();
 builder.Services.AddScoped<IAiEnrichmentService, HybridAiEnrichmentService>();
 builder.Services.AddScoped<IMarketIntelligenceService, MarketIntelligenceService>();
-// Bloque B + C — Cluster + Decision Engine + Product Generator
+// Technology Intelligence
+builder.Services.AddScoped<ITechnologyIntelligenceService, TechnologyIntelligenceService>();
+// Revenue / Company Intelligence
+builder.Services.AddScoped<ICompanyIntelligenceService, CompanyIntelligenceService>();
+// Bloque B + C — Cluster + Decision Engine + Opportunity Engine V2 + Product Generator
 builder.Services.AddScoped<IClusterEngine, ClusterEngine>();
 builder.Services.AddScoped<IDecisionEngine, DecisionEngine>();
+builder.Services.AddScoped<IOpportunityEngineV2, OpportunityEngineV2>();
 builder.Services.AddScoped<IProductGeneratorService, ProductGeneratorService>();
+// Fase 3 — Semantic Clustering
+builder.Services.AddScoped<ISemanticClusterEngine, SemanticClusterEngine>();
 // Bloque D — LLM Synthesis
 builder.Services.AddScoped<IClusterSynthesisService, ClusterSynthesisService>();
 builder.Services.AddScoped<IProductSynthesisService, ProductSynthesisService>();
@@ -130,6 +138,7 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
     await DatabaseSeeder.SeedAsync(dbContext);
+    await AiPromptSeeder.SeedAsync(dbContext);
 }
 
 if (app.Environment.IsDevelopment())

@@ -12,12 +12,31 @@ export interface ScrapeRequest {
   startPage?: number;
   endPage?: number;
   showBrowser?: boolean;
+  analysisPromptKey?: string;
 }
 
 export interface ScrapeResult {
   savedCount: number;
   totalFound: number;
-  timestamp: string;
+  executedAtUtc: string;
+  activeAnalysisPromptKey?: string;
+  touchedCount?: number;
+}
+
+export interface DataQualityReport {
+  totalJobs: number;
+  duplicateCount: number;
+  staleUnprocessedCount: number;
+  unprocessedCount: number;
+  cleanCount: number;
+}
+
+export interface PurgeResult {
+  dryRun: boolean;
+  deletedDuplicates: number;
+  deletedStaleUnprocessed: number;
+  totalDeleted: number;
+  staleDaysThreshold: number;
 }
 
 @Injectable({
@@ -38,5 +57,16 @@ export class ScrapingService {
 
   scrapeMultiProvider(request: ScrapeRequest): Observable<ScrapeResult> {
     return this.http.post<ScrapeResult>(`${this.apiUrl}/search/scrape`, request);
+  }
+
+  getDataQuality(): Observable<DataQualityReport> {
+    return this.http.get<DataQualityReport>(`${this.apiUrl}/jobs/quality`);
+  }
+
+  purgeJobs(dryRun: boolean, staleDays: number): Observable<PurgeResult> {
+    return this.http.post<PurgeResult>(
+      `${this.apiUrl}/jobs/purge?dryRun=${dryRun}&staleDays=${staleDays}`,
+      {}
+    );
   }
 }

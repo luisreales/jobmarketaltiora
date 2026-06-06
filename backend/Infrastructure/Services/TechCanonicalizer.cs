@@ -10,6 +10,34 @@ public sealed class TechCanonicalizer
     // Order matters: more specific tokens should come before general ones.
     private static readonly (string Token, string Canonical)[] TokenMap =
     [
+        // AI / ML — must come early to avoid false-positive substring matches
+        ("semantic kernel",     "SEMANTICKERNEL"),
+        ("langchain",           "LANGCHAIN"),
+        ("langgraph",           "LANGCHAIN"),
+        ("retrieval augmented", "RAG"),
+        ("vector db",           "VECTORDB"),
+        ("pinecone",            "VECTORDB"),
+        ("weaviate",            "VECTORDB"),
+        ("chroma",              "VECTORDB"),
+        ("qdrant",              "VECTORDB"),
+        ("ai agents",           "AIAGENT"),
+        ("ai agent",            "AIAGENT"),
+        ("github copilot",      "COPILOT"),
+        ("copilot",             "COPILOT"),
+        ("hugging face",        "HUGGINGFACE"),
+        ("huggingface",         "HUGGINGFACE"),
+        ("openai",              "OPENAI"),
+        ("chatgpt",             "OPENAI"),
+        ("gpt-4",               "OPENAI"),
+        ("gpt4",                "OPENAI"),
+        ("anthropic",           "CLAUDE"),
+        ("pytorch",             "PYTORCH"),
+        ("tensorflow",          "TENSORFLOW"),
+        ("ollama",              "LLAMA"),
+        ("llama",               "LLAMA"),
+        ("mlflow",              "MLFLOW"),
+        ("rag",                 "RAG"),
+
         // .NET ecosystem
         (".net core",       "NET"),
         ("asp.net",         "NET"),

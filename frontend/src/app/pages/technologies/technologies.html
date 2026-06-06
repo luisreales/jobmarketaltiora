@@ -1,0 +1,139 @@
+<div class="p-6 max-w-screen-xl mx-auto">
+
+  <!-- Header -->
+  <div class="mb-5 flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <h1 class="text-xl font-semibold text-slate-800">Technologies</h1>
+      <p class="text-slate-400 text-sm mt-0.5">Technology catalog derived from job market data</p>
+    </div>
+    <button
+      (click)="triggerRebuild()"
+      [disabled]="rebuilding"
+      class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+      @if (rebuilding) {
+        <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+        </svg>
+        Rebuilding…
+      } @else {
+        Rebuild Index
+      }
+    </button>
+  </div>
+
+  <!-- Rebuild result banner -->
+  @if (rebuildResult) {
+    <div class="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-sm text-green-800">
+      {{ rebuildResult }}
+    </div>
+  }
+
+  <!-- Stats row -->
+  @if (!loading && techs.length > 0) {
+    <div class="mb-4 flex items-center gap-6 text-sm text-slate-500">
+      <span><span class="font-semibold text-slate-700">{{ totalCount }}</span> technologies tracked</span>
+      <span>·</span>
+      <span><span class="font-semibold text-purple-600">{{ aiCount }}</span> AI-related</span>
+      <span>·</span>
+      <span><span class="font-semibold text-sky-600">{{ emergingCount }}</span> emerging</span>
+    </div>
+  }
+
+  <!-- Filters -->
+  <div class="mb-4 flex flex-wrap gap-3 items-center">
+    <input
+      [ngModel]="searchTerm"
+      (ngModelChange)="onSearch($event)"
+      placeholder="Search technologies…"
+      class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm w-52 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+
+    <select
+      [(ngModel)]="selectedCategory"
+      (ngModelChange)="onFilterChange()"
+      class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white">
+      @for (cat of categories; track cat) {
+        <option [value]="cat">{{ cat || 'All categories' }}</option>
+      }
+    </select>
+
+    <select
+      [(ngModel)]="selectedLifecycle"
+      (ngModelChange)="onFilterChange()"
+      class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white">
+      @for (lc of lifecycles; track lc) {
+        <option [value]="lc">{{ lc || 'All stages' }}</option>
+      }
+    </select>
+
+    <select
+      [(ngModel)]="sortBy"
+      (ngModelChange)="onFilterChange()"
+      class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white">
+      @for (s of sorts; track s.value) {
+        <option [value]="s.value">Sort: {{ s.label }}</option>
+      }
+    </select>
+  </div>
+
+  @if (loading) {
+    <div class="flex items-center justify-center py-32 text-slate-400 text-sm">Loading…</div>
+  }
+
+  @if (!loading && techs.length === 0) {
+    <div class="flex flex-col items-center justify-center py-24 border-2 border-dashed border-slate-200 rounded-2xl text-center">
+      <h2 class="text-base font-semibold text-slate-700 mb-1">No technologies yet</h2>
+      <p class="text-sm text-slate-400 max-w-sm mb-4">Click "Rebuild Index" to extract technologies from the job dataset.</p>
+    </div>
+  }
+
+  @if (!loading && techs.length > 0) {
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-100 text-xs text-slate-500 uppercase tracking-wide">
+            <th class="text-left px-4 py-3 font-semibold">Technology</th>
+            <th class="text-left px-4 py-3 font-semibold">Category</th>
+            <th class="text-left px-4 py-3 font-semibold">Stage</th>
+            <th class="text-right px-4 py-3 font-semibold">Mentions</th>
+            <th class="text-right px-4 py-3 font-semibold">Growth</th>
+            <th class="text-right px-4 py-3 font-semibold">Demand</th>
+            <th class="text-right px-4 py-3 font-semibold">Opportunity</th>
+            <th class="text-right px-4 py-3 font-semibold">Industries</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-50">
+          @for (t of techs; track trackByTech($index, t)) {
+            <tr class="hover:bg-slate-50/60 transition">
+              <td class="px-4 py-2.5">
+                <div class="font-medium text-slate-800">{{ t.displayName }}</div>
+                <div class="text-[11px] text-slate-400 font-mono">{{ t.name }}</div>
+              </td>
+              <td class="px-4 py-2.5">
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium {{ categoryColor(t.category) }}">
+                  {{ t.category }}
+                </span>
+              </td>
+              <td class="px-4 py-2.5">
+                <span class="text-xs px-2 py-0.5 rounded-full border font-medium
+                  {{ lifecycleColor(t.lifecycleStage).bg }}
+                  {{ lifecycleColor(t.lifecycleStage).text }}
+                  {{ lifecycleColor(t.lifecycleStage).border }}">
+                  {{ t.lifecycleStage }}
+                </span>
+              </td>
+              <td class="px-4 py-2.5 text-right text-slate-700 font-medium tabular-nums">{{ t.totalMentions }}</td>
+              <td class="px-4 py-2.5 text-right tabular-nums {{ growthClass(t.growthRate) }}">
+                {{ formatGrowth(t.growthRate) }}
+              </td>
+              <td class="px-4 py-2.5 text-right text-slate-600 tabular-nums">{{ t.demandScore.toFixed(0) }}</td>
+              <td class="px-4 py-2.5 text-right font-semibold text-indigo-600 tabular-nums">{{ t.opportunityScore.toFixed(0) }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-500 tabular-nums">{{ t.industryCoverageCount }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+</div>

@@ -1,0 +1,132 @@
+<div class="p-6 max-w-screen-xl mx-auto">
+
+  <!-- Header -->
+  <div class="mb-6">
+    <h1 class="text-xl font-semibold text-slate-800">Market Intelligence</h1>
+    <p class="text-slate-400 text-sm mt-0.5">Executive overview — real data from the pipeline</p>
+  </div>
+
+  @if (loading) {
+    <div class="flex items-center justify-center py-32 text-slate-400 text-sm">Loading intelligence data…</div>
+  }
+
+  @if (!loading) {
+
+    <!-- KPI grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      @for (kpi of kpis; track kpi.label) {
+        <div class="bg-white border border-slate-200 rounded-xl p-4">
+          <div class="text-xs text-slate-400 mb-1">{{ kpi.label }}</div>
+          <div class="text-2xl font-bold {{ kpi.color }}">{{ kpi.value }}</div>
+          @if (kpi.sub) { <div class="text-xs text-slate-400 mt-0.5">{{ kpi.sub }}</div> }
+        </div>
+      }
+    </div>
+
+    <!-- Charts + Pipeline Status -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+
+      <!-- Industry pie -->
+      <div class="bg-white border border-slate-200 rounded-xl p-4">
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Industry Distribution</h3>
+        @if (industryChart.labels && industryChart.labels.length > 0) {
+          <canvas baseChart [data]="industryChart" [options]="industryOptions" type="pie"></canvas>
+        } @else {
+          <p class="text-xs text-slate-400 py-8 text-center">No data</p>
+        }
+      </div>
+
+      <!-- Opp type bar -->
+      <div class="bg-white border border-slate-200 rounded-xl p-4">
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Opportunity Types</h3>
+        <canvas baseChart [data]="opportunityTypeChart" [options]="oppTypeOptions" type="bar"></canvas>
+      </div>
+
+      <!-- Pipeline status -->
+      <app-pipeline-status
+        [clusters]="clusters"
+        [totalJobs]="totalJobs"
+        [totalProducts]="totalProducts"/>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+
+      <!-- Priority ranking -->
+      <div class="bg-white border border-slate-200 rounded-xl p-4">
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Top 10 by Priority V2</h3>
+        @if (priorityChart.labels && priorityChart.labels.length > 0) {
+          <canvas baseChart [data]="priorityChart" [options]="priorityOptions" type="bar"></canvas>
+        } @else {
+          <p class="text-xs text-slate-400 py-8 text-center">No clusters with Priority Score yet</p>
+        }
+      </div>
+
+      <!-- Scatter: Revenue vs Jobs -->
+      <div class="bg-white border border-slate-200 rounded-xl p-4">
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Revenue Potential vs Job Count</h3>
+        @if (scatterChart.datasets && scatterChart.datasets.length > 0) {
+          <canvas baseChart [data]="scatterChart" [options]="scatterOptions" type="scatter"></canvas>
+        } @else {
+          <p class="text-xs text-slate-400 py-8 text-center">No data</p>
+        }
+      </div>
+    </div>
+
+    <!-- Top Opportunities table -->
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Top Opportunities</h3>
+        <a routerLink="/clusters" class="text-xs text-indigo-600 hover:underline">View all →</a>
+      </div>
+
+      @if (topClusters.length === 0) {
+        <div class="px-4 py-12 text-center text-slate-400 text-sm">No actionable clusters found.</div>
+      } @else {
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead class="bg-slate-50 text-slate-400 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-4 py-2.5 font-medium">Cluster</th>
+                <th class="text-left px-4 py-2.5 font-medium">Industry</th>
+                <th class="text-right px-4 py-2.5 font-medium">Priority V2</th>
+                <th class="text-right px-4 py-2.5 font-medium">Revenue</th>
+                <th class="text-right px-4 py-2.5 font-medium">Buy Intent</th>
+                <th class="text-right px-4 py-2.5 font-medium">Close%</th>
+                <th class="text-right px-4 py-2.5 font-medium">Jobs</th>
+                <th class="text-center px-4 py-2.5 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @for (c of topClusters; track c.id) {
+                <tr class="hover:bg-slate-50/50">
+                  <td class="px-4 py-2.5">
+                    <div class="font-medium text-slate-700 truncate max-w-[220px]">{{ c.label }}</div>
+                    <div class="text-slate-400 text-[10px]">{{ c.painCategory }}</div>
+                  </td>
+                  <td class="px-4 py-2.5 text-slate-500">{{ c.industry }}</td>
+                  <td class="px-4 py-2.5 text-right">
+                    <span class="font-bold {{ c.priorityScoreV2 >= 75 ? 'text-emerald-600' : 'text-indigo-600' }}">
+                      {{ c.priorityScoreV2 }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-2.5 text-right text-slate-600">{{ fmt(c.revenuePotential) }}</td>
+                  <td class="px-4 py-2.5 text-right text-slate-600">{{ fmt(c.buyingIntentScore) }}</td>
+                  <td class="px-4 py-2.5 text-right text-slate-600">{{ fmtClose(c.estimatedCloseProbability) }}</td>
+                  <td class="px-4 py-2.5 text-right text-slate-500">{{ c.jobCount }}</td>
+                  <td class="px-4 py-2.5 text-center">
+                    <a [routerLink]="['/clusters']"
+                      class="px-2 py-1 text-indigo-600 border border-indigo-200 rounded text-[10px] hover:bg-indigo-50">
+                      Open
+                    </a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+
+  }
+
+</div>
